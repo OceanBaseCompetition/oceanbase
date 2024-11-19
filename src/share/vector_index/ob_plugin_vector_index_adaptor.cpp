@@ -1600,7 +1600,8 @@ int ObPluginVectorIndexAdaptor::vsag_query_vids(ObVectorQueryAdaptorResultContex
   const float *snap_distances = nullptr;
   int64_t delta_res_cnt = 0;
   int64_t snap_res_cnt = 0;
-
+  // LOG_INFO("ChenNingjie: query_cond->query_limit_:", K(query_cond->query_limit_));
+  // LOG_INFO("ChenNingjie: query_cond->ef_search_:", K(query_cond->ef_search_));
   if (OB_FAIL(check_vsag_mem_used())) {
     LOG_WARN("failed to check vsag mem used.", K(ret));
   } else if (OB_FAIL(merge_and_generate_bitmap(ctx, ibitmap, dbitmap))) {
@@ -1649,7 +1650,8 @@ int ObPluginVectorIndexAdaptor::vsag_query_vids(ObVectorQueryAdaptorResultContex
                                          snap_distances,
                                          snap_vids,
                                          snap_res_cnt,
-                                         query_cond->ef_search_,
+                                        //  query_cond->ef_search_,
+                                          126,
                                          dbitmap))) {
       ret = ObPluginVectorIndexHelper::vsag_errcode_2ob(ret);
       LOG_WARN("knn search snap failed.", K(ret), K(dim));
