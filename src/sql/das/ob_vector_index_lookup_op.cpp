@@ -81,7 +81,7 @@ int ObVectorIndexLookupOp::init(const ObDASBaseCtDef *table_lookup_ctdef,
       ret = OB_BAD_NULL_ERROR;
       LOG_WARN("lookup rtdef is nullptr", KP(doc_id_lookup_rtdef_), KP(lookup_rtdef_));
     } else {
-      need_scan_aux_ = true;
+      need_scan_aux_ = false;
       doc_id_lookup_ctdef_ = aux_lookup_ctdef->get_lookup_scan_ctdef();
       doc_id_lookup_rtdef_ = aux_lookup_rtdef->get_lookup_scan_rtdef();
       doc_id_expr_ = vir_scan_ctdef->inv_scan_vec_id_col_;
@@ -401,6 +401,10 @@ int ObVectorIndexLookupOp::fetch_index_table_rowkeys(int64_t &count, const int64
   ObNewRow *row = nullptr;
   int64_t index_scan_row_cnt = 0;
   if (OB_ISNULL(adaptor_vid_iter_)) {
+    // for(int i = 0; i < 4; i++){
+    //   // 测试每个部分的耗时
+    //   duration_[i] = std::chrono::duration<double, std::milli>(0);
+    // }
     if (OB_FAIL(process_adaptor_state())) {
       LOG_WARN("failed to process_adaptor_state", K(ret));
     }
@@ -513,14 +517,26 @@ int ObVectorIndexLookupOp::reuse_scan_iter(bool need_switch_param)
 int ObVectorIndexLookupOp::set_lookup_vid_key(ObRowkey& doc_id_rowkey)
 {
   int ret = OB_SUCCESS;
-  ObNewRange doc_id_range;
-  uint64_t ref_table_id = doc_id_lookup_ctdef_->ref_table_id_;
-  if (OB_FAIL(doc_id_range.build_range(ref_table_id, doc_id_rowkey))) {
-    LOG_WARN("build doc id lookup range failed", K(ret));
-  } else if (OB_FAIL(doc_id_scan_param_.key_ranges_.push_back(doc_id_range))) {
-    LOG_WARN("store lookup key range failed", K(ret));
+  // ObNewRange doc_id_range;
+  // uint64_t ref_table_id = doc_id_lookup_ctdef_->ref_table_id_;
+  // if (OB_FAIL(doc_id_range.build_range(ref_table_id, doc_id_rowkey))) {
+  //   LOG_WARN("build doc id lookup range failed", K(ret));
+  // } // else if (OB_FAIL(doc_id_scan_param_.key_ranges_.push_back(doc_id_range))) {
+  //   LOG_WARN("store lookup key range failed", K(ret));
+  // } else if (OB_FAIL(doc_id_scan_param_.key_ranges_.push_back(doc_id_range))) {
+  //   LOG_WARN("store lookup key range failed", K(ret));
+  // } else {
+  //   LOG_DEBUG("generate doc id scan range", K(ret), K(doc_id_range));
+  // }
+
+  // 我直接从主表找
+  ObNewRange lookup_range;
+  if (OB_FAIL(lookup_range.build_range(lookup_ctdef_->ref_table_id_, doc_id_rowkey))) {
+    LOG_WARN("failed to build lookup range", K(ret), K(doc_id_rowkey));
+  } else if (OB_FAIL(scan_param_.key_ranges_.push_back(lookup_range))) {
+    LOG_WARN("store lookup key range failed", K(ret), K(scan_param_));
   } else {
-    LOG_DEBUG("generate doc id scan range", K(ret), K(doc_id_range));
+    LOG_DEBUG("get rowkey from docid rowkey table", K(ret), K(doc_id_rowkey), K(lookup_range));
   }
   return ret;
 }

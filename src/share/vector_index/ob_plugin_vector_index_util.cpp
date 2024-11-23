@@ -102,7 +102,7 @@ int ObVectorQueryVidIterator::get_next_rows(ObNewRow *&row, int64_t &size)
       } else {
         int64_t index = 0;
         for (; index < batch_size_ && cur_pos_ < total_; ++index) {
-          obj[index].set_int(vids_[cur_pos_++]);
+          obj[index].set_int(vids_[cur_pos_++] - 2010001); // 直接用 vid 和 id 的关系
         }
         row->cells_ = obj;
         row->count_ = index;
@@ -135,17 +135,27 @@ int ObPluginVectorIndexHelper::merge_delta_and_snap_vids(const ObVsagQueryResult
   actual_cnt = 0;
   int64_t res_num = 0;
   if (first.total_ == 0) {
-    while (res_num < total && res_num < second.total_) {
-      vids_result[res_num] = second.vids_[res_num];
-      res_num++;
-    }
-    actual_cnt = res_num;
+    LOG_DEBUG("ChenNingjie: 只有snap");
+    // while (res_num < total && res_num < second.total_) {
+    //   vids_result[res_num] = second.vids_[res_num];
+    //   res_num++;
+    // }
+    // actual_cnt = res_num;
+    size_t copy_size = std::min(total, second.total_);
+    std::memcpy(vids_result, second.vids_, copy_size * sizeof(second.vids_[0]));
+    // std::sort(vids_result, vids_result + copy_size);
+    actual_cnt = copy_size;
   } else if (second.total_ == 0) {
-    while (res_num < total && res_num < first.total_) {
-      vids_result[res_num] = first.vids_[res_num];
-      res_num++;
-    }
-    actual_cnt = res_num;
+     LOG_DEBUG("ChenNingjie: 只有delta");
+    // while (res_num < total && res_num < first.total_) {
+    //   vids_result[res_num] = first.vids_[res_num];
+    //   res_num++;
+    // }
+    // actual_cnt = res_num;
+    size_t copy_size = std::min(total, first.total_);
+    std::memcpy(vids_result, first.vids_, copy_size * sizeof(first.vids_[0]));
+    // std::sort(vids_result, vids_result + copy_size);
+    actual_cnt = copy_size;
   } else if (OB_ISNULL(first.vids_) || OB_ISNULL(second.vids_)) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("get vids invalid.", K(ret), K(first.vids_), K(second.vids_));
@@ -169,7 +179,7 @@ int ObPluginVectorIndexHelper::merge_delta_and_snap_vids(const ObVsagQueryResult
 
     actual_cnt = res_num;
   }
-
+  
   return ret;
 }
 
