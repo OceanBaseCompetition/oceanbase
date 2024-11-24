@@ -1647,12 +1647,13 @@ public:
         return cur_c;
     }
 
-    std::priority_queue<std::pair<float, labeltype>>
-    searchKnn(const void* query_data,
+    std::vector<labeltype>
+    obSearchKnn(const void* query_data,
               size_t k,
               uint64_t ef,
-              BaseFilterFunctor* isIdAllowed = nullptr) const override {
-        std::priority_queue<std::pair<float, labeltype>> result;
+              BaseFilterFunctor* isIdAllowed = nullptr) const {
+        // KNN调用栈: 8
+        std::vector<labeltype> result;
         if (cur_element_count_ == 0)
             return result;
 
@@ -1661,6 +1662,7 @@ public:
         tableint currObj = enterpoint_node_;
         float curdist =
             fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
+        // vsag::logger::debug("ChenNingjie: maxlevel_:{0}", maxlevel_);
         for (int level = maxlevel_; level > 0; level--) {
             bool changed = true;
             while (changed) {
@@ -1673,6 +1675,7 @@ public:
                 metric_distance_computations_ += size;
 
                 tableint* datal = (tableint*)(data + 1);
+                // vsag::logger::debug("ChenNingjie: maxlevel_的size:{0}", size);
                 for (int i = 0; i < size; i++) {
                     tableint cand = datal[i];
                     if (cand < 0 || cand > max_elements_)
@@ -1686,12 +1689,14 @@ public:
                     }
                 }
             }
+            // vsag::logger::debug("ChenNingjie: next level");
         }
 
         std::priority_queue<std::pair<float, tableint>,
                             vsag::Vector<std::pair<float, tableint>>,
                             CompareByFirst>
             top_candidates(allocator_);
+        // vsag::logger::debug("ChenNingjie: ef = {0}, k = {0}", ef, k);
         if (num_deleted_) {
             top_candidates =
                 searchBaseLayerST<true, true>(currObj, query_data, std::max(ef, k), isIdAllowed);
@@ -1699,16 +1704,87 @@ public:
             top_candidates =
                 searchBaseLayerST<false, true>(currObj, query_data, std::max(ef, k), isIdAllowed);
         }
-
+        // vsag::logger::debug("ChenNingjie: top_candidates.size() = {0}", top_candidates.size());
         while (top_candidates.size() > k) {
             top_candidates.pop();
         }
+        // 这里感觉可以优化
+        result.reserve(top_candidates.size());
+        while (top_candidates.size() > 0) {
+            std::pair<float, tableint> rez = top_candidates.top();
+            result.emplace_back(getExternalLabel(rez.second));
+            top_candidates.pop();
+        }
+        return std::move(result);
+    }
+    std::priority_queue<std::pair<float, labeltype>>
+    searchKnn(const void* query_data,
+              size_t k,
+              uint64_t ef,
+              BaseFilterFunctor* isIdAllowed = nullptr) const override {
+        // KNN调用栈: 8
+        std::priority_queue<std::pair<float, labeltype>> result;
+        if (cur_element_count_ == 0)
+            return result;
+
+        std::shared_ptr<float[]> normalize_query;
+        normalize_vector(query_data, normalize_query);
+        tableint currObj = enterpoint_node_;
+        float curdist =
+            fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
+        // vsag::logger::debug("ChenNingjie: maxlevel_:{0}", maxlevel_);
+        for (int level = maxlevel_; level > 0; level--) {
+            bool changed = true;
+            while (changed) {
+                changed = false;
+                unsigned int* data;
+
+                data = (unsigned int*)get_linklist(currObj, level);
+                int size = getListCount(data);
+                metric_hops_++;
+                metric_distance_computations_ += size;
+
+                tableint* datal = (tableint*)(data + 1);
+                // vsag::logger::debug("ChenNingjie: maxlevel_的size:{0}", size);
+                for (int i = 0; i < size; i++) {
+                    tableint cand = datal[i];
+                    if (cand < 0 || cand > max_elements_)
+                        throw std::runtime_error("cand error");
+                    float d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
+
+                    if (d < curdist) {
+                        curdist = d;
+                        currObj = cand;
+                        changed = true;
+                    }
+                }
+            }
+            // vsag::logger::debug("ChenNingjie: next level");
+        }
+
+        std::priority_queue<std::pair<float, tableint>,
+                            vsag::Vector<std::pair<float, tableint>>,
+                            CompareByFirst>
+            top_candidates(allocator_);
+        // vsag::logger::debug("ChenNingjie: ef = {0}, k = {0}", ef, k);
+        if (num_deleted_) {
+            top_candidates =
+                searchBaseLayerST<true, true>(currObj, query_data, std::max(ef, k), isIdAllowed);
+        } else {
+            top_candidates =
+                searchBaseLayerST<false, true>(currObj, query_data, std::max(ef, k), isIdAllowed);
+        }
+        // vsag::logger::debug("ChenNingjie: top_candidates.size() = {0}", top_candidates.size());
+        while (top_candidates.size() > k) {
+            top_candidates.pop();
+        }
+        // 这里感觉可以优化
         while (top_candidates.size() > 0) {
             std::pair<float, tableint> rez = top_candidates.top();
             result.push(std::pair<float, labeltype>(rez.first, getExternalLabel(rez.second)));
             top_candidates.pop();
         }
-        return result;
+        return std::move(result);
     }
 
     std::priority_queue<std::pair<float, labeltype>>

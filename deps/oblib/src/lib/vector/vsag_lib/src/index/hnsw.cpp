@@ -190,14 +190,15 @@ HNSW::knn_search_internal(const DatasetPtr& query,
                           int64_t k,
                           const std::string& parameters,
                           const FilterType& filter_obj) const {
+    // KNN调用栈: 6
     if (filter_obj) {
+        // vsag::logger::debug("knn_search_internal 有 filter_obj");
         BitsetOrCallbackFilter filter(filter_obj);
         return this->knn_search(query, k, parameters, &filter);
     } else {
         return this->knn_search(query, k, parameters, nullptr);
     }
 };
-
 tl::expected<DatasetPtr, Error>
 HNSW::knn_search(const DatasetPtr& query,
                  int64_t k,
@@ -231,15 +232,23 @@ HNSW::knn_search(const DatasetPtr& query,
         auto params = HnswSearchParameters::FromJson(parameters);
 
         // perform search
-        std::priority_queue<std::pair<float, size_t>> results;
+        // std::priority_queue<std::pair<float, size_t>> results;
+        std::vector<size_t> results;
         double time_cost;
         try {
             Timer t(time_cost);
-            results = alg_hnsw->searchKnn(
-                (const void*)(vector), k, std::max(params.ef_search, k), filter_ptr);
+            vsag::logger::debug("ChenNingjie: alg_hnsw->searchKnn");
+            // KNN调用栈: 7
+            // results = alg_hnsw->searchKnn(
+            //     (const void*)(vector), k, std::max(params.ef_search, k), filter_ptr);
+            auto HierarchicalNSW_KNN = static_cast<hnswlib::HierarchicalNSW*>(alg_hnsw.get());
+            // if(HierarchicalNSW_KNN != nullptr){
+                results = HierarchicalNSW_KNN->obSearchKnn(
+                    (const void*)(vector), k, std::max(params.ef_search, k), filter_ptr);
+            // }
         } catch (const std::runtime_error& e) {
             LOG_ERROR_AND_RETURNS(ErrorType::INTERNAL_ERROR,
-                                  "failed to perofrm knn_search(internalError): ",
+                                  "failed to perform knn_search(internalError): ",
                                   e.what());
         }
 
@@ -257,16 +266,17 @@ HNSW::knn_search(const DatasetPtr& query,
         }
 
         // perform conjugate graph enhancement
-        if (use_conjugate_graph_ and params.use_conjugate_graph_search) {
-            std::shared_lock lock(rw_mutex_);
-            time_cost = 0;
-            Timer t(time_cost);
+        // vsag::logger::debug("ChenNingjie: 共轭图增强?use_conjugate_graph_ = {0}, params.use_conjugate_graph_search = {0}", use_conjugate_graph_, params.use_conjugate_graph_search);
+        // if (use_conjugate_graph_ and params.use_conjugate_graph_search) {
+        //     std::shared_lock lock(rw_mutex_);
+        //     time_cost = 0;
+        //     Timer t(time_cost);
 
-            auto func = [this, vector](int64_t label) {
-                return this->alg_hnsw->getDistanceByLabel(label, vector);
-            };
-            conjugate_graph_->EnhanceResult(results, func);
-        }
+        //     auto func = [this, vector](int64_t label) {
+        //         return this->alg_hnsw->getDistanceByLabel(label, vector);
+        //     };
+        //     conjugate_graph_->EnhanceResult(results, func);
+        // }
 
         // return result
 
@@ -274,14 +284,19 @@ HNSW::knn_search(const DatasetPtr& query,
 
         int64_t* ids = (int64_t*)allocator_->Allocate(sizeof(int64_t) * results.size());
         result->Ids(ids);
-        float* dists = (float*)allocator_->Allocate(sizeof(float) * results.size());
-        result->Distances(dists);
-
-        for (int64_t j = results.size() - 1; j >= 0; --j) {
-            dists[j] = results.top().first;
-            ids[j] = results.top().second;
-            results.pop();
-        }
+        // float* dists = (float*)allocator_->Allocate(sizeof(float) * results.size());
+        // result->Distances(dists);
+        // int64_t result_size = results.size();
+        // vsag::logger::debug("ChenNingjie: results.size() = {0}", result_size);
+        // for (int64_t j = result_size - 1; j >= 0; --j) {
+        //     dists[j] = results.top().first;
+        //     ids[j] = results.top().second;
+        //     results.pop();
+        // }
+        // for (int64_t j = result_size - 1; j >= 0; --j) {
+        //     ids[j] = results[j];
+        // }
+        std::memcpy(ids, results.data(), sizeof(int64_t) * results.size());
 
         return std::move(result);
     } catch (const std::invalid_argument& e) {

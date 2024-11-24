@@ -36,13 +36,18 @@ SlowTaskTimer::SlowTaskTimer(const std::string& n, int64_t log_threshold_ms)
 SlowTaskTimer::~SlowTaskTimer() {
     auto finish = std::chrono::steady_clock::now();
     std::chrono::duration<double, std::milli> duration = finish - start;
-    if (duration.count() > threshold) {
-        if (duration.count() >= 1000) {
-            vsag::logger::debug("  {0} cost {1:.3f}s", name, duration.count() / 1000);
-        } else {
-            vsag::logger::debug("  {0} cost {1:.3f}ms", name, duration.count());
-        }
-    }
+    // if (duration.count() > threshold) {
+    //     if (duration.count() >= 1000) {
+    //         vsag::logger::debug("  {0} cost {1:.3f}s", name, duration.count() / 1000);
+    //     } else {
+    //         vsag::logger::debug("  {0} cost {1:.3f}ms", name, duration.count());
+    //     }
+    // }
+    // knn测试
+    // std::fstream fout;
+    // fout.open("/root/source/oceanbase/knn_time.log", std::ios::out);
+    // fout << duration.count() << std::endl;
+    // fout.close();
 }
 
 class HnswIndexHandler
@@ -133,7 +138,7 @@ int HnswIndexHandler::knn_search(const vsag::DatasetPtr& query, int64_t topk,
     vsag::logger::debug("  search_parameters:{}", parameters);
     vsag::logger::debug("  topk:{}", topk);
     vsag::ErrorType error = vsag::ErrorType::UNKNOWN_ERROR;
-
+    // KNN调用栈: 4
     auto result = index_->KnnSearch(query, topk, parameters, filter);
     if (result.has_value()) {
         //result的生命周期
@@ -142,9 +147,9 @@ int HnswIndexHandler::knn_search(const vsag::DatasetPtr& query, int64_t topk,
         dist = result.value()->GetDistances();
         result_size = result.value()->GetDim();
         // print the results
-        for (int64_t i = 0; i < result_size; ++i) {
-            vsag::logger::debug("  knn search id : {}, distance : {}",ids[i],dist[i]);
-        }
+        // for (int64_t i = 0; i < result_size; ++i) {
+        //     vsag::logger::debug("  knn search id : {}, distance : {}",ids[i],dist[i]);
+        // }
         return 0; 
     } else {
         error = result.error().type;
@@ -330,6 +335,7 @@ int knn_search(VectorIndexPtr& index_handler,float* query_vector,int dim, int64_
     HnswIndexHandler* hnsw = static_cast<HnswIndexHandler*>(index_handler);
     auto query = vsag::Dataset::Make();
     query->NumElements(1)->Dim(dim)->Float32Vectors(query_vector)->Owner(false);
+    // KNN调用栈: 3
     ret = hnsw->knn_search(query, topk, search_parameters.dump(), dist, ids, result_size, filter);
     if (ret != 0) {
         vsag::logger::error("   knn search error happend, ret={}", ret);
