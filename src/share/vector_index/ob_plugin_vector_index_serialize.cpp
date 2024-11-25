@@ -296,7 +296,7 @@ int ObHNSWDeserializeCallback::operator()(char*& data, const int64_t data_size, 
         } else {
           key_datum = row->storage_datums_[0];
           data_datum = row->storage_datums_[1];
-          LOG_INFO("[vec index debug] show key and data for vsag deserialize", K(key_datum), K(data_datum));
+          // LOG_INFO("[vec index debug] show key and data for vsag deserialize", K(key_datum), K(data_datum));
           if (OB_ISNULL(str_iter = OB_NEWx(ObTextStringIter, alloactor, ObLongTextType, CS_TYPE_BINARY, data_datum.get_string(), true))) {
             ret = OB_ALLOCATE_MEMORY_FAILED;
             LOG_WARN("fail to new ObTextStringIter", KR(ret));
