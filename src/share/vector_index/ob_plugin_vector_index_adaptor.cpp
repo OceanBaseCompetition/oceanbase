@@ -1642,6 +1642,7 @@ int ObPluginVectorIndexAdaptor::vsag_query_vids(ObVectorQueryAdaptorResultContex
   if (OB_SUCC(ret)) {
     lib::ObMallocHookAttrGuard malloc_guard(lib::ObMemAttr(tenant_id_, "VIndexVsagADP"));
     TCRLockGuard lock_guard(snap_data_->mem_data_rwlock_);
+    // KNN调用栈: 1
     if (OB_FAIL(is_mem_data_init_atomic(VIRT_SNAP) &&
                 obvectorutil::knn_search(get_snap_index(),
                                          query_vector,
@@ -1650,8 +1651,7 @@ int ObPluginVectorIndexAdaptor::vsag_query_vids(ObVectorQueryAdaptorResultContex
                                          snap_distances,
                                          snap_vids,
                                          snap_res_cnt,
-                                        //  query_cond->ef_search_,
-                                          126,
+                                         query_cond->ef_search_,
                                          dbitmap))) {
       ret = ObPluginVectorIndexHelper::vsag_errcode_2ob(ret);
       LOG_WARN("knn search snap failed.", K(ret), K(dim));
