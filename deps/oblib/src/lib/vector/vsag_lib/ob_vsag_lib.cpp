@@ -331,12 +331,14 @@ int knn_search(VectorIndexPtr& index_handler,float* query_vector,int dim, int64_
     auto filter = [bitmap](int64_t id) -> bool {
         return roaring::api::roaring64_bitmap_contains(bitmap, id);
     };
-    nlohmann::json search_parameters{{"hnsw", {{"ef_search", ef_search}}}};
+    // nlohmann::json search_parameters{{"hnsw", {{"ef_search", ef_search}}}};
+    std::string search_parameters = std::to_string(ef_search);
     HnswIndexHandler* hnsw = static_cast<HnswIndexHandler*>(index_handler);
     auto query = vsag::Dataset::Make();
     query->NumElements(1)->Dim(dim)->Float32Vectors(query_vector)->Owner(false);
     // KNN调用栈: 3
-    ret = hnsw->knn_search(query, topk, search_parameters.dump(), dist, ids, result_size, filter);
+    // ret = hnsw->knn_search(query, topk, search_parameters.dump(), dist, ids, result_size, filter);
+    ret = hnsw->knn_search(query, topk, search_parameters, dist, ids, result_size, filter);
     if (ret != 0) {
         vsag::logger::error("   knn search error happend, ret={}", ret);
     }

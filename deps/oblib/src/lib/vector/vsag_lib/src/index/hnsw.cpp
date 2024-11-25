@@ -229,7 +229,8 @@ HNSW::knn_search(const DatasetPtr& query,
         std::shared_lock lock(rw_mutex_);
 
         // check search parameters
-        auto params = HnswSearchParameters::FromJson(parameters);
+        // auto params = HnswSearchParameters::FromJson(parameters);// 解析很慢
+        int64_t ef_search = std::stoi(parameters); // 实际上改成硬编码更快,现阶段为了方便调参暂时用这个
 
         // perform search
         // std::priority_queue<std::pair<float, size_t>> results;
@@ -243,8 +244,9 @@ HNSW::knn_search(const DatasetPtr& query,
             //     (const void*)(vector), k, std::max(params.ef_search, k), filter_ptr);
             auto HierarchicalNSW_KNN = static_cast<hnswlib::HierarchicalNSW*>(alg_hnsw.get());
             // if(HierarchicalNSW_KNN != nullptr){
+            
                 results = HierarchicalNSW_KNN->obSearchKnn(
-                    (const void*)(vector), k, std::max(params.ef_search, k), filter_ptr);
+                    (const void*)(vector), k, std::max(ef_search, k), filter_ptr);
             // }
         } catch (const std::runtime_error& e) {
             LOG_ERROR_AND_RETURNS(ErrorType::INTERNAL_ERROR,
