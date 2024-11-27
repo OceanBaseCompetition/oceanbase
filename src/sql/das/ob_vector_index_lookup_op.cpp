@@ -97,6 +97,8 @@ int ObVectorIndexLookupOp::init(const ObDASBaseCtDef *table_lookup_ctdef,
       set_dim(vir_scan_ctdef->dim_);
       doc_id_lookup_rtdef_->scan_flag_.scan_order_ = ObQueryFlag::KeepOrder;
       lookup_rtdef_->scan_flag_.scan_order_ = ObQueryFlag::KeepOrder;
+      // 这里改变index_back_
+      lookup_rtdef_->scan_flag_.index_back_ = !(lookup_ctdef_->pd_expr_spec_.pushdown_filters_.empty());
       if (DAS_OP_SORT == aux_lookup_ctdef->get_doc_id_scan_ctdef()->op_type_) {
         sort_ctdef_ = static_cast<const ObDASSortCtDef *>(aux_lookup_ctdef->get_doc_id_scan_ctdef());
         sort_rtdef_ = static_cast<ObDASSortRtDef *>(aux_lookup_rtdef->get_doc_id_scan_rtdef());
@@ -409,23 +411,36 @@ int ObVectorIndexLookupOp::fetch_index_table_rowkeys(int64_t &count, const int64
       LOG_WARN("failed to process_adaptor_state", K(ret));
     }
   }
-  if (OB_FAIL(ret)) {
-  } else if (OB_ISNULL(adaptor_vid_iter_)) {
-    ret = OB_ERR_UNEXPECTED;
-    LOG_WARN("failed to get adaptor_vid_iter", K(ret));
-  } else if (OB_FALSE_IT(adaptor_vid_iter_->set_batch_size(capacity))) {
-  } else if (OB_FAIL(adaptor_vid_iter_->get_next_rows(row, index_scan_row_cnt))) {
-    if (OB_UNLIKELY(OB_ITER_END != ret)) {
-      LOG_WARN("failed to get next next row from text retrieval iter", K(ret));
-    } else {
-      ret = OB_SUCCESS;
+  if (lookup_rtdef_->scan_flag_.index_back_){
+    if (OB_FAIL(ret)) {
+    } else if (OB_ISNULL(adaptor_vid_iter_)) {
+      ret = OB_ERR_UNEXPECTED;
+      LOG_WARN("failed to get adaptor_vid_iter", K(ret));
+    } else if (OB_FALSE_IT(adaptor_vid_iter_->set_batch_size(capacity))) {
+    } else if (OB_FAIL(adaptor_vid_iter_->get_next_rows(row, index_scan_row_cnt))) {
+      if (OB_UNLIKELY(OB_ITER_END != ret)) {
+        LOG_WARN("failed to get next next row from text retrieval iter", K(ret));
+      } else {
+        ret = OB_SUCCESS;
+      }
     }
-  }
-  if (OB_SUCC(ret) && index_scan_row_cnt > 0) {
-    if (OB_FAIL(set_lookup_vid_keys(row, index_scan_row_cnt))) {
-      LOG_WARN("failed to set lookup vid query key", K(ret));
-    } else {
-      count += index_scan_row_cnt;
+    if (OB_SUCC(ret) && index_scan_row_cnt > 0) {
+      if (OB_FAIL(set_lookup_vid_keys(row, index_scan_row_cnt))) {
+        LOG_WARN("failed to set lookup vid query key", K(ret));
+      } else {
+        count += index_scan_row_cnt;
+      }
+    }
+  } else {
+    // 直接返回索引扫描结果
+    if (OB_FAIL(ret)) {
+    } else if (OB_ISNULL(adaptor_vid_iter_)) {
+      ret = OB_ERR_UNEXPECTED;
+      LOG_WARN("failed to get adaptor_vid_iter", K(ret));
+    } else if (OB_FALSE_IT(adaptor_vid_iter_->set_batch_size(capacity))) {
+    } else if (OB_ISNULL(lookup_iter_)){
+      // LOG_INFO("ChenNingjie: 设置lookup_iter_", K(*adaptor_vid_iter_));
+      lookup_iter_ = adaptor_vid_iter_;
     }
   }
   return ret;

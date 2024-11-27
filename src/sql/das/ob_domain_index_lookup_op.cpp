@@ -63,12 +63,14 @@ int ObDomainIndexLookupOp::next_state()
 {
   INIT_SUCC(ret);
   if (state_ == INDEX_SCAN) {
-    if (0 == lookup_rowkey_cnt_) {
+    if (lookup_rtdef_->scan_flag_.index_back_ && 0 == lookup_rowkey_cnt_) {
       state_ = LookupState::FINISHED;
     } else if (need_scan_aux_) {
       state_ = LookupState::AUX_LOOKUP;
-    } else {
+    } else if (lookup_rtdef_->scan_flag_.index_back_){
       state_ = LookupState::DO_LOOKUP;
+    } else {
+      state_ = LookupState::OUTPUT_ROWS;
     }
   } else if (state_ == LookupState::AUX_LOOKUP) {
     state_ = LookupState::DO_LOOKUP;
@@ -76,7 +78,9 @@ int ObDomainIndexLookupOp::next_state()
     state_ = LookupState::OUTPUT_ROWS;
   } else if (state_ == LookupState::OUTPUT_ROWS) {
     state_ = LookupState::INDEX_SCAN;
-  } else {
+  } else if (state_ == LookupState::FINISHED){// 直接返回vid的情况回出现state_ = FINISHED
+  }
+  else {
     ret = OB_ERR_UNEXPECTED;
   }
   LOG_DEBUG("domain index to next state", K(ret), K(state_));
@@ -160,21 +164,25 @@ int ObDomainIndexLookupOp::get_next_row()
 
   return ret;
 }
-
+std::chrono::duration<double, std::milli> ObDomainIndexLookupOp::duration_[4] = {std::chrono::duration<double, std::milli>(0)};
 int ObDomainIndexLookupOp::get_next_rows(int64_t &count, int64_t capacity)
 {
+  // 很重要的状态机
   int ret = OB_SUCCESS;
   bool got_next_row = false;
+  // LOG_INFO("ChenNingjie: 调用get_next_rows");
   while (OB_SUCC(ret) && !got_next_row) {
+    // LOG_INFO("ChenNingjie: 下一个state", K(state_));
     switch (state_) {
       case INDEX_SCAN: {
+        // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+        // 获取pid
         reset_lookup_state();
         int64_t rowkey_count = 0;
         lookup_row_cnt_ = 0;
-        lookup_row_cnt_ = 0;
         if (OB_FAIL(fetch_index_table_rowkeys(rowkey_count, capacity))) {
           LOG_WARN("failed get rowkeys from index table", K(ret));
-        } else if (0 == rowkey_count) {
+        } else if (scan_param_.scan_flag_.index_back_ && 0 == rowkey_count) {
           index_end_ = true;
         }
         if (OB_SUCC(ret)) {
@@ -185,9 +193,13 @@ int ObDomainIndexLookupOp::get_next_rows(int64_t &count, int64_t capacity)
             LOG_WARN("failed to switch to next lookup state", K(ret), K(state_));
           }
         }
+        // auto finish = std::chrono::steady_clock::now();
+        // duration_[0] += finish - start;
         break;
       }
       case AUX_LOOKUP: {
+        // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+        // 提取rowkey
         if (OB_FAIL(get_aux_table_rowkeys(lookup_rowkey_cnt_))) {
           if (ret != OB_ITER_END) {
             LOG_WARN("do aux index lookup failed", K(ret));
@@ -195,18 +207,26 @@ int ObDomainIndexLookupOp::get_next_rows(int64_t &count, int64_t capacity)
         } else if (OB_FAIL(next_state())) {
           LOG_WARN("failed to switch to next lookup state", K(ret), K(state_));
         }
+        // auto finish = std::chrono::steady_clock::now();
+        // duration_[1] += finish - start;
         break;
       }
       case DO_LOOKUP: {
+        // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+        // 从主表中提取
         lookup_row_cnt_ = 0;
         if (OB_FAIL(do_index_lookup())) {
           LOG_WARN("do index lookup failed", K(ret));
         } else if (OB_FAIL(next_state())) {
           LOG_WARN("failed to switch to next lookup state", K(ret), K(state_));
         }
+        // auto finish = std::chrono::steady_clock::now();
+        // duration_[2] += finish - start;
         break;
       }
       case OUTPUT_ROWS: {
+        // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+        // 从结果集中提取
         if (OB_FAIL(get_next_rows_from_data_table(count, capacity))) {
           if (OB_ITER_END == ret) {
             ret = OB_SUCCESS;
@@ -215,7 +235,7 @@ int ObDomainIndexLookupOp::get_next_rows(int64_t &count, int64_t capacity)
               got_next_row = true;
             } else if (OB_FAIL(check_lookup_row_cnt())) {
               LOG_WARN("failed to check table lookup", K(ret));
-            } else if (OB_FAIL(next_state())) {
+            } else if (OB_FAIL(next_state())) { 
               LOG_WARN("failed to switch to next lookup state", K(ret), K_(state));
             }
           } else {
@@ -228,9 +248,17 @@ int ObDomainIndexLookupOp::get_next_rows(int64_t &count, int64_t capacity)
           PRINT_VECTORIZED_ROWS(SQL, DEBUG, get_eval_ctx(), get_output_expr(), count, skip,
                                 K(ret), K(lookup_row_cnt_), K(lookup_rowkey_cnt_));
         }
+        // auto finish = std::chrono::steady_clock::now();
+        // duration_[3] += finish - start;
         break;
       }
       case FINISHED: {
+        // std::fstream fout;
+        // fout.open("/root/source/oceanbase/time.log",std::ios::out);
+        // for(int i = 0; i < 4; ++i){
+        //   fout << duration_[i].count() << std::endl;
+        // }
+        // fout.close();
         ret = OB_ITER_END;
         break;
       }
@@ -240,7 +268,7 @@ int ObDomainIndexLookupOp::get_next_rows(int64_t &count, int64_t capacity)
       }
     }
   }
-
+  
   return ret;
 }
 

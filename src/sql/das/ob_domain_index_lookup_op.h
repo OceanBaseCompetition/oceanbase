@@ -113,6 +113,7 @@ protected:
 
   static const int64_t SORT_MEMORY_LIMIT = 48L * 1024L * 1024L;
   static const int64_t MAX_NUM_PER_BATCH = 1000;
+  static std::chrono::duration<double, std::milli> duration_[4];
 };
 
 class ObMulValueIndexLookupOp : public ObDomainIndexLookupOp
