@@ -363,3 +363,6 @@ deps/3rd
 ############# test #############
 test/tmp
 test/var
+show_log.sh
+my_build.sh
+obcluster.yaml
