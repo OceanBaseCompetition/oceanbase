@@ -178,7 +178,7 @@ bool ObTxTableGuard::check_ls_offline()
   if (OB_ISNULL(tx_table_)) {
     ret = OB_NOT_INIT;
     discover_ls_offline = false;
-    STORAGE_LOG(WARN, "tx table is nullptr", K(ret), K(discover_ls_offline));
+    // STORAGE_LOG(WARN, "tx table is nullptr", K(ret), K(discover_ls_offline)); // 启动向量索引这里日志太多了
   } else {
     int64_t cur_epoch = tx_table_->get_epoch();
     ObTxTable::TxTableState tx_table_state = tx_table_->get_state();
