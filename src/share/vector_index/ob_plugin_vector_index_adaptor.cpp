@@ -955,66 +955,66 @@ int ObPluginVectorIndexAdaptor::check_delta_buffer_table_readnext_status(ObVecto
                                                                          SCN query_scn)
 {
   INIT_SUCC(ret);
-  SCN min_delta_scn;
+  // SCN min_delta_scn;
 
   // TODO 优先判断是否需要等待 PVQ_WAIT
-  if (OB_ISNULL(ctx) || OB_ISNULL(row_iter)) {
-    ret = OB_ERR_UNEXPECTED;
-    LOG_WARN("get ctx or row_iter invalid.", K(ret), KP(row_iter));
-  } else if (OB_FAIL(ctx->init_bitmaps())) {
-    LOG_WARN("failed to init ctx bitmaps.", K(ret));
-  } else {
-    ObTableScanIterator *table_scan_iter = static_cast<ObTableScanIterator *>(row_iter);
-    while (OB_SUCC(ret)) {
-      blocksstable::ObDatumRow *datum_row = nullptr;
-      int64_t vid = 0;
-      ObString op;
-      if (OB_FAIL(table_scan_iter->get_next_row(datum_row))) {
-        if (OB_ITER_END != ret) {
-          LOG_WARN("get next row failed.", K(ret));
-        }
-      } else if (OB_ISNULL(datum_row) || !datum_row->is_valid()) {
-        ret = OB_ERR_UNEXPECTED;
-        LOG_WARN("get row invalid.", K(ret));
-      } else if (datum_row->get_column_count() != 3) {
-        ret = OB_ERR_UNEXPECTED;
-        LOG_WARN("get row column cnt invalid.", K(ret), K(datum_row->get_column_count()));
-      } else if (OB_FALSE_IT(vid = datum_row->storage_datums_[0].get_int())) {
-        LOG_WARN("failed to get vid.", K(ret));
-      } else if (OB_FALSE_IT(op = datum_row->storage_datums_[1].get_string())) {
-        LOG_WARN("failed to get op.", K(ret));
-      } else if (op.length() != 1) {
-        ret = OB_ERR_UNEXPECTED;
-        LOG_WARN("get invalid op length.", K(ret), K(op));
-      } else {
-        lib::ObMallocHookAttrGuard malloc_guard(lib::ObMemAttr(tenant_id_, "VIBitmapADP"));
-        if (op.ptr()[0] == sql::ObVecIndexDMLIterator::VEC_DELTA_INSERT[0]) {
-          ROARING_TRY_CATCH(roaring::api::roaring64_bitmap_add(ctx->bitmaps_->insert_bitmap_, vid));
+//   if (OB_ISNULL(ctx) || OB_ISNULL(row_iter)) {
+//     ret = OB_ERR_UNEXPECTED;
+//     LOG_WARN("get ctx or row_iter invalid.", K(ret), KP(row_iter));
+//   } else if (OB_FAIL(ctx->init_bitmaps())) {
+//     LOG_WARN("failed to init ctx bitmaps.", K(ret));
+//   } else {
+//     ObTableScanIterator *table_scan_iter = static_cast<ObTableScanIterator *>(row_iter);
+//     while (OB_SUCC(ret)) {
+//       blocksstable::ObDatumRow *datum_row = nullptr;
+//       int64_t vid = 0;
+//       ObString op;
+//       if (OB_FAIL(table_scan_iter->get_next_row(datum_row))) {
+//         if (OB_ITER_END != ret) {
+//           LOG_WARN("get next row failed.", K(ret));
+//         }
+//       } else if (OB_ISNULL(datum_row) || !datum_row->is_valid()) {
+//         ret = OB_ERR_UNEXPECTED;
+//         LOG_WARN("get row invalid.", K(ret));
+//       } else if (datum_row->get_column_count() != 3) {
+//         ret = OB_ERR_UNEXPECTED;
+//         LOG_WARN("get row column cnt invalid.", K(ret), K(datum_row->get_column_count()));
+//       } else if (OB_FALSE_IT(vid = datum_row->storage_datums_[0].get_int())) {
+//         LOG_WARN("failed to get vid.", K(ret));
+//       } else if (OB_FALSE_IT(op = datum_row->storage_datums_[1].get_string())) {
+//         LOG_WARN("failed to get op.", K(ret));
+//       } else if (op.length() != 1) {
+//         ret = OB_ERR_UNEXPECTED;
+//         LOG_WARN("get invalid op length.", K(ret), K(op));
+//       } else {
+//         lib::ObMallocHookAttrGuard malloc_guard(lib::ObMemAttr(tenant_id_, "VIBitmapADP"));
+//         if (op.ptr()[0] == sql::ObVecIndexDMLIterator::VEC_DELTA_INSERT[0]) {
+//           ROARING_TRY_CATCH(roaring::api::roaring64_bitmap_add(ctx->bitmaps_->insert_bitmap_, vid));
 
-        } else if (op.ptr()[0] == sql::ObVecIndexDMLIterator::VEC_DELTA_DELETE[0]) {
-          ROARING_TRY_CATCH(roaring::api::roaring64_bitmap_remove(ctx->bitmaps_->insert_bitmap_, vid));
-          ROARING_TRY_CATCH(roaring::api::roaring64_bitmap_add(ctx->bitmaps_->delete_bitmap_, vid));
+//         } else if (op.ptr()[0] == sql::ObVecIndexDMLIterator::VEC_DELTA_DELETE[0]) {
+//           ROARING_TRY_CATCH(roaring::api::roaring64_bitmap_remove(ctx->bitmaps_->insert_bitmap_, vid));
+//           ROARING_TRY_CATCH(roaring::api::roaring64_bitmap_add(ctx->bitmaps_->delete_bitmap_, vid));
 
-        } else {
-          ret = OB_ERR_UNEXPECTED;
-          LOG_WARN("get invalid op.", K(ret), K(op));
-        }
-      }
-    }
+//         } else {
+//           ret = OB_ERR_UNEXPECTED;
+//           LOG_WARN("get invalid op.", K(ret), K(op));
+//         }
+//       }
+//     }
 
-    if (ret == OB_ITER_END) {
-      ret = OB_SUCCESS;
-    }
+//     if (ret == OB_ITER_END) {
+//       ret = OB_SUCCESS;
+//     }
 
-#ifndef NDEBUG
-    output_bitmap(ctx->bitmaps_->insert_bitmap_);
-    output_bitmap(ctx->bitmaps_->delete_bitmap_);
-#endif
+// #ifndef NDEBUG
+//     output_bitmap(ctx->bitmaps_->insert_bitmap_);
+//     output_bitmap(ctx->bitmaps_->delete_bitmap_);
+// #endif
 
     if (OB_SUCC(ret)) {
       ctx->status_ = PVQ_LACK_SCN;
     }
-  }
+  // }
 
   return ret;
 }
@@ -1160,20 +1160,21 @@ int ObPluginVectorIndexAdaptor::check_index_id_table_readnext_status(ObVectorQue
     }
   }
 
-  if (OB_FAIL(ret)) {
-  } else if (check_if_complete_index(read_scn) &&
-             OB_FAIL(complete_index_mem_data(read_scn, row_iter, datum_row, i_vids))) {
-    LOG_WARN("failed to check comple index mem data.", K(ret), K(read_scn), K(vbitmap_data_->scn_));
-  } else if (OB_ISNULL(ctx->bitmaps_) || OB_ISNULL(ctx->bitmaps_->insert_bitmap_)) {
-    ret = OB_ERR_UNEXPECTED;
-    LOG_WARN("failed to get ctx bit map.", K(ret));
-  } else if (check_if_complete_delta(ctx->bitmaps_->insert_bitmap_, i_vids.count())) {
-    if (OB_FAIL(prepare_delta_mem_data(ctx->bitmaps_->insert_bitmap_, i_vids, ctx))) {
-      LOG_WARN("failed to complete.", K(ret));
-    } else if (ctx->vec_data_.count_ > 0) {
-      ctx->status_ = PVQ_COM_DATA;
-    }
-  }
+  // if (OB_FAIL(ret)) {
+  // } else if (check_if_complete_index(read_scn) &&
+  //            OB_FAIL(complete_index_mem_data(read_scn, row_iter, datum_row, i_vids))) {
+  //   LOG_WARN("failed to check comple index mem data.", K(ret), K(read_scn), K(vbitmap_data_->scn_));
+  // } 
+  // else if (OB_ISNULL(ctx->bitmaps_) || OB_ISNULL(ctx->bitmaps_->insert_bitmap_)) {
+  //   ret = OB_ERR_UNEXPECTED;
+  //   LOG_WARN("failed to get ctx bit map.", K(ret));
+  // } else if (check_if_complete_delta(ctx->bitmaps_->insert_bitmap_, i_vids.count())) {
+  //   if (OB_FAIL(prepare_delta_mem_data(ctx->bitmaps_->insert_bitmap_, i_vids, ctx))) {
+  //     LOG_WARN("failed to complete.", K(ret));
+  //   } else if (ctx->vec_data_.count_ > 0) {
+  //     ctx->status_ = PVQ_COM_DATA;
+  //   }
+  // }
 
   return ret;
 }
@@ -1604,23 +1605,24 @@ int ObPluginVectorIndexAdaptor::vsag_query_vids(ObVectorQueryAdaptorResultContex
   // LOG_INFO("ChenNingjie: query_cond->ef_search_:", K(query_cond->ef_search_));
   if (OB_FAIL(check_vsag_mem_used())) {
     LOG_WARN("failed to check vsag mem used.", K(ret));
-  } else if (OB_FAIL(merge_and_generate_bitmap(ctx, ibitmap, dbitmap))) {
-    LOG_WARN("failed to merge and generate bitmap.", K(ret));
-  }
+  } 
+  // else if (OB_FAIL(merge_and_generate_bitmap(ctx, ibitmap, dbitmap))) {
+  //   LOG_WARN("failed to merge and generate bitmap.", K(ret));
+  // }
 
 // for dubug
-#ifndef NDEBUG
-  if (OB_FAIL(ret)) {
-  } else if (is_mem_data_init_atomic(VIRT_INC) && OB_FAIL(print_bitmap(ctx->bitmaps_->insert_bitmap_))) {
-    LOG_WARN("failed to print bitmap.", K(ret));
-  } else if (is_mem_data_init_atomic(VIRT_INC)&& OB_FAIL(print_bitmap(ctx->bitmaps_->delete_bitmap_))) {
-    LOG_WARN("failed to print bitmap.", K(ret));
-  } else if (is_mem_data_init_atomic(VIRT_BITMAP) && OB_FAIL(print_bitmap(vbitmap_data_->bitmap_->insert_bitmap_))) {
-    LOG_WARN("failed to print bitmap.", K(ret));
-  } else if (is_mem_data_init_atomic(VIRT_BITMAP)&& OB_FAIL(print_bitmap(vbitmap_data_->bitmap_->delete_bitmap_))) {
-    LOG_WARN("failed to print bitmap.", K(ret));
-  }
-#endif
+// #ifndef NDEBUG
+//   if (OB_FAIL(ret)) {
+//   } else if (is_mem_data_init_atomic(VIRT_INC) && OB_FAIL(print_bitmap(ctx->bitmaps_->insert_bitmap_))) {
+//     LOG_WARN("failed to print bitmap.", K(ret));
+//   } else if (is_mem_data_init_atomic(VIRT_INC)&& OB_FAIL(print_bitmap(ctx->bitmaps_->delete_bitmap_))) {
+//     LOG_WARN("failed to print bitmap.", K(ret));
+//   } else if (is_mem_data_init_atomic(VIRT_BITMAP) && OB_FAIL(print_bitmap(vbitmap_data_->bitmap_->insert_bitmap_))) {
+//     LOG_WARN("failed to print bitmap.", K(ret));
+//   } else if (is_mem_data_init_atomic(VIRT_BITMAP)&& OB_FAIL(print_bitmap(vbitmap_data_->bitmap_->delete_bitmap_))) {
+//     LOG_WARN("failed to print bitmap.", K(ret));
+//   }
+// #endif
 
   if (OB_SUCC(ret)) {
     lib::ObMallocHookAttrGuard malloc_guard(lib::ObMemAttr(tenant_id_, "VIndexVsagADP"));
@@ -1745,9 +1747,11 @@ int ObPluginVectorIndexAdaptor::query_result(ObVectorQueryAdaptorResultContext *
   } else if (OB_ISNULL(query_vector = reinterpret_cast<float *>(query_cond->query_vector_.ptr()))) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("failed to cast vectors.", K(ret), K(query_cond->query_vector_));
-  } else if (OB_FAIL(ctx->is_bitmaps_valid())) {
-    LOG_WARN("ctx bitmap invalid.", K(ret));
-  } else if (OB_ISNULL(iter_buff = ctx->allocator_->alloc(sizeof(ObVectorQueryVidIterator)))) {
+  } 
+  // else if (OB_FAIL(ctx->is_bitmaps_valid())) {
+  //   LOG_WARN("ctx bitmap invalid.", K(ret));
+  // } 
+  else if (OB_ISNULL(iter_buff = ctx->allocator_->alloc(sizeof(ObVectorQueryVidIterator)))) {
     ret = OB_ALLOCATE_MEMORY_FAILED;
     LOG_WARN("failed to allocator iter.", K(ret));
   } else if (OB_FALSE_IT(vids_iter = new(iter_buff) ObVectorQueryVidIterator())) {

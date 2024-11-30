@@ -1782,7 +1782,7 @@ int ObLocalIndexLookupOp::get_next_rows_from_data_table(int64_t &count, int64_t 
 {
   int ret = OB_SUCCESS;
   lookup_rtdef_->p_pd_expr_op_->clear_evaluated_flag();
-  if (lookup_rtdef_->scan_flag_.index_back_){
+  if (OB_UNLIKELY(lookup_rtdef_->scan_flag_.index_back_)){
     if (scan_param_.key_ranges_.empty()) {
       ret = OB_ITER_END;
       state_ = FINISHED;

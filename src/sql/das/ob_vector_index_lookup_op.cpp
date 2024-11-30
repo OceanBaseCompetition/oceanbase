@@ -411,7 +411,7 @@ int ObVectorIndexLookupOp::fetch_index_table_rowkeys(int64_t &count, const int64
       LOG_WARN("failed to process_adaptor_state", K(ret));
     }
   }
-  if (lookup_rtdef_->scan_flag_.index_back_){
+  if (OB_UNLIKELY(lookup_rtdef_->scan_flag_.index_back_)){
     if (OB_FAIL(ret)) {
     } else if (OB_ISNULL(adaptor_vid_iter_)) {
       ret = OB_ERR_UNEXPECTED;
@@ -677,29 +677,29 @@ int ObVectorIndexLookupOp::prepare_state(const ObVidAdaLookupStatus& cur_state,
   ObITabletScan &tsc_service = get_tsc_service();
   switch(cur_state) {
     case ObVidAdaLookupStatus::STATES_INIT: {
-      if (nullptr == delta_buf_iter_) {
-        delta_buf_scan_param_.need_switch_param_ = false;
-        // init doc_id -> rowkey table iterator as rowkey iter
-        if (OB_FAIL(init_delta_buffer_scan_param())) {
-          LOG_WARN("failed to init delta buf table lookup scan param", K(ret));
-        } else if (OB_FAIL(tsc_service.table_scan(delta_buf_scan_param_, delta_buf_iter_))) {
-          if (OB_SNAPSHOT_DISCARDED == ret && delta_buf_scan_param_.fb_snapshot_.is_valid()) {
-            ret = OB_INVALID_QUERY_TIMESTAMP;
-          } else if (OB_TRY_LOCK_ROW_CONFLICT != ret) {
-            LOG_WARN("fail to scan table", K(delta_buf_scan_param_), K(ret));
-          }
-        }
-      } else {
-        const ObTabletID &scan_tablet_id = delta_buf_scan_param_.tablet_id_;
-        delta_buf_scan_param_.need_switch_param_ = scan_tablet_id.is_valid() && (delta_buf_tablet_id_ != scan_tablet_id);
-        delta_buf_scan_param_.tablet_id_ = delta_buf_tablet_id_;
-        delta_buf_scan_param_.ls_id_ = ls_id_;
-        if (OB_FAIL(tsc_service.reuse_scan_iter(delta_buf_scan_param_.need_switch_param_, delta_buf_iter_))) {
-          LOG_WARN("failed to reuse delta buf table scan iterator", K(ret));
-        } else if (OB_FAIL(tsc_service.table_rescan(delta_buf_scan_param_, delta_buf_iter_))) {
-          LOG_WARN("failed to rescan delta buf table rowkey table", K(ret), K_(delta_buf_tablet_id), K(scan_tablet_id));
-        }
-      }
+      // if (nullptr == delta_buf_iter_) {
+      //   delta_buf_scan_param_.need_switch_param_ = false;
+      //   // init doc_id -> rowkey table iterator as rowkey iter
+      //   if (OB_FAIL(init_delta_buffer_scan_param())) {
+      //     LOG_WARN("failed to init delta buf table lookup scan param", K(ret));
+      //   } else if (OB_FAIL(tsc_service.table_scan(delta_buf_scan_param_, delta_buf_iter_))) {
+      //     if (OB_SNAPSHOT_DISCARDED == ret && delta_buf_scan_param_.fb_snapshot_.is_valid()) {
+      //       ret = OB_INVALID_QUERY_TIMESTAMP;
+      //     } else if (OB_TRY_LOCK_ROW_CONFLICT != ret) {
+      //       LOG_WARN("fail to scan table", K(delta_buf_scan_param_), K(ret));
+      //     }
+      //   }
+      // } else {
+      //   const ObTabletID &scan_tablet_id = delta_buf_scan_param_.tablet_id_;
+      //   delta_buf_scan_param_.need_switch_param_ = scan_tablet_id.is_valid() && (delta_buf_tablet_id_ != scan_tablet_id);
+      //   delta_buf_scan_param_.tablet_id_ = delta_buf_tablet_id_;
+      //   delta_buf_scan_param_.ls_id_ = ls_id_;
+      //   if (OB_FAIL(tsc_service.reuse_scan_iter(delta_buf_scan_param_.need_switch_param_, delta_buf_iter_))) {
+      //     LOG_WARN("failed to reuse delta buf table scan iterator", K(ret));
+      //   } else if (OB_FAIL(tsc_service.table_rescan(delta_buf_scan_param_, delta_buf_iter_))) {
+      //     LOG_WARN("failed to rescan delta buf table rowkey table", K(ret), K_(delta_buf_tablet_id), K(scan_tablet_id));
+      //   }
+      // }
       break;
     }
     case ObVidAdaLookupStatus::QUERY_ROWKEY_VEC: {
@@ -872,12 +872,16 @@ int ObVectorIndexLookupOp::call_pva_interface(const ObVidAdaLookupStatus& cur_st
       break;
     }
     case ObVidAdaLookupStatus::STATES_END: {
+      // auto start = std::chrono::steady_clock::now();
       ObVectorQueryConditions query_cond;
       if (OB_FAIL(set_vector_query_condition(query_cond))) {
         LOG_WARN("fail to set query condition.", K(ret));
       } else if (OB_FAIL(adaptor.query_result(&ada_ctx, &query_cond, adaptor_vid_iter_))) {
         LOG_WARN("fail to query result.", K(ret));
       }
+      // auto finish = std::chrono::steady_clock::now();
+      // std::chrono::duration<double, std::milli> duration = finish - start;
+      // LOG_INFO("ChenNingjie: 向量索引查询vid的耗时", K(duration.count()));
       break;
     }
     default: {

@@ -196,6 +196,8 @@ int create_index(VectorIndexPtr& index_handler, IndexType index_type,
                  const char* metric, int dim,
                  int max_degree, int ef_construction, int ef_search, void* allocator)
 {   
+    // max_degree = 27; // M 硬编码
+    // ef_construction = 300; // ef_construction 硬编码
     vsag::logger::debug("TRACE LOG[test_create_index]:");
     vsag::ErrorType error = vsag::ErrorType::UNKNOWN_ERROR;
     int ret = 0;
@@ -329,7 +331,8 @@ int knn_search(VectorIndexPtr& index_handler,float* query_vector,int dim, int64_
     SlowTaskTimer t("knn_search");
     roaring::api::roaring64_bitmap_t *bitmap = static_cast<roaring::api::roaring64_bitmap_t*>(invalid);
     auto filter = [bitmap](int64_t id) -> bool {
-        return roaring::api::roaring64_bitmap_contains(bitmap, id);
+        // return roaring::api::roaring64_bitmap_contains(bitmap, id);
+        return false;
     };
     // nlohmann::json search_parameters{{"hnsw", {{"ef_search", ef_search}}}};
     std::string search_parameters = std::to_string(ef_search);
