@@ -204,7 +204,7 @@ HNSW::knn_search(const DatasetPtr& query,
                  int64_t k,
                  const std::string& parameters,
                  hnswlib::BaseFilterFunctor* filter_ptr) const {
-    SlowTaskTimer t("hnsw knnsearch", 20);
+    // SlowTaskTimer t("hnsw knnsearch", 20);
 
     try {
         // cannot perform search on empty index
@@ -235,9 +235,9 @@ HNSW::knn_search(const DatasetPtr& query,
         // perform search
         // std::priority_queue<std::pair<float, size_t>> results;
         std::vector<size_t> results;
-        double time_cost;
+        // double time_cost;
         try {
-            Timer t(time_cost);
+            // Timer t(time_cost);
             vsag::logger::debug("ChenNingjie: alg_hnsw->searchKnn");
             // KNN调用栈: 7
             // results = alg_hnsw->searchKnn(
@@ -253,12 +253,12 @@ HNSW::knn_search(const DatasetPtr& query,
                                   "failed to perform knn_search(internalError): ",
                                   e.what());
         }
-        vsag::logger::debug("ChenNingjie: knn耗时:{}", time_cost);
+        // vsag::logger::debug("ChenNingjie: knn耗时:{}", time_cost);
         // update stats
-        {
-            std::lock_guard<std::mutex> lock(stats_mutex_);
-            result_queues_[STATSTIC_KNN_TIME].Push(time_cost);
-        }
+        // {
+        //     std::lock_guard<std::mutex> lock(stats_mutex_);
+        //     result_queues_[STATSTIC_KNN_TIME].Push(time_cost);
+        // }
 
         // return result
         auto result = Dataset::Make();

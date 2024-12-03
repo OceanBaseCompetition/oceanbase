@@ -144,7 +144,7 @@ int HnswIndexHandler::knn_search(const vsag::DatasetPtr& query, int64_t topk,
         //result的生命周期
         result.value()->Owner(false);
         ids = result.value()->GetIds();
-        dist = result.value()->GetDistances();
+        // dist = result.value()->GetDistances();
         result_size = result.value()->GetDim();
         // print the results
         // for (int64_t i = 0; i < result_size; ++i) {
@@ -328,7 +328,7 @@ int knn_search(VectorIndexPtr& index_handler,float* query_vector,int dim, int64_
                                                    (void*)index_handler, (void*)query_vector);
         return static_cast<int>(error);
     }
-    SlowTaskTimer t("knn_search");
+    // SlowTaskTimer t("knn_search");
     roaring::api::roaring64_bitmap_t *bitmap = static_cast<roaring::api::roaring64_bitmap_t*>(invalid);
     auto filter = [bitmap](int64_t id) -> bool {
         // return roaring::api::roaring64_bitmap_contains(bitmap, id);

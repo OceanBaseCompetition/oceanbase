@@ -495,13 +495,15 @@ int ObDASScanOp::open_op()
         LOG_WARN("iter tree failed to do table scan", K(ret));
       }
     }
-  } else if (OB_FAIL(do_table_scan())) {
-    if (OB_SNAPSHOT_DISCARDED == ret && scan_param_.fb_snapshot_.is_valid()) {
-      ret = OB_INVALID_QUERY_TIMESTAMP;
-    } else if (OB_TRY_LOCK_ROW_CONFLICT != ret) {
-      LOG_WARN("fail to scan table", K(scan_param_), K(ret));
-    }
-  } else if (get_lookup_ctdef() != nullptr) {
+  }
+  //  else if (OB_FAIL(do_table_scan())) {
+  //   if (OB_SNAPSHOT_DISCARDED == ret && scan_param_.fb_snapshot_.is_valid()) {
+  //     ret = OB_INVALID_QUERY_TIMESTAMP;
+  //   } else if (OB_TRY_LOCK_ROW_CONFLICT != ret) {
+  //     LOG_WARN("fail to scan table", K(scan_param_), K(ret));
+  //   }
+  // }
+   else if (get_lookup_ctdef() != nullptr) {
     if (OB_FAIL(do_local_index_lookup())) {
       LOG_WARN("do local index lookup failed", K(ret));
     }
