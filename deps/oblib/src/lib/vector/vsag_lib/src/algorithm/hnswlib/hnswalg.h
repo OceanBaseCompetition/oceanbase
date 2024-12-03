@@ -503,6 +503,174 @@ public:
         return top_candidates;
     }
 
+    void downAdjust(std::vector<std::pair<float, tableint>> &vec, const size_t& n, size_t index) const {
+        auto temp = vec[index];
+
+        while (true) {
+            size_t left = 2 * index + 1;
+            if (left >= n) break;  // 提前退出条件
+            size_t right = left + 1;
+            size_t largest = (right < n && vec[right].first > vec[left].first) ? right : left;
+
+            if (vec[largest].first <= temp.first) break;
+
+            vec[index] = vec[largest];  // 避免 swap
+            index = largest;
+        }
+
+        vec[index] = temp;
+    }
+
+    void upAdjust(std::vector<std::pair<float, tableint>>& vec, size_t index) const {
+        auto temp = vec[index];
+
+        // 向上调整直到堆顶或者当前节点比父节点大
+        while (index > 0) {
+            size_t parent = (index - 1) / 2;
+
+            // 如果父节点的值大于等于当前节点的值，调整结束
+            if (vec[parent].first >= temp.first) break;
+
+            // 将父节点的值下移
+            vec[index] = vec[parent];
+            index = parent;
+        }
+
+        // 将当前元素放到正确的位置
+        vec[index] = temp;
+    }
+
+    // 建堆
+    void createHeap(std::vector<std::pair<float, tableint>> &vec, const size_t& n) const {
+        for(int i = n / 2 - 1; i >= 0; --i){
+            downAdjust(vec, n, i);
+        }
+    }
+
+    void heapSort(std::vector<std::pair<float, tableint>> &vec, const size_t& n) const {
+        for(int i = n - 1; i > 0; --i){
+            auto temp = vec[i];
+            vec[i] = vec[0];
+            vec[0] = temp;
+            downAdjust(vec, i, 0);
+        }
+    }
+
+    template <bool has_deletions, bool collect_metrics = false>
+    std::vector<std::pair<float, tableint>>
+    obsearchBaseLayerST(tableint ep_id,
+                      const void* data_point,
+                      size_t ef,
+                      BaseFilterFunctor* isIdAllowed = nullptr) const {
+        auto vl = visited_list_pool_->getFreeVisitedList();
+        vl_type* visited_array = vl->mass;
+        vl_type visited_array_tag = vl->curV;
+
+        std::vector<std::pair<float, tableint>> top_candidates;
+        top_candidates.reserve(ef+1);
+        std::priority_queue<std::pair<float, tableint>,
+                            vsag::Vector<std::pair<float, tableint>>,
+                            CompareByFirst>
+            candidate_set(allocator_);
+        // bool sorted = false;
+
+        float lowerBound;
+        if ((!has_deletions || !isMarkedDeleted(ep_id)) &&
+            ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(ep_id)))) {
+            float dist = fstdistfunc_(data_point, getDataByInternalId(ep_id), dist_func_param_);
+            lowerBound = dist;
+            top_candidates.emplace_back(dist, ep_id);
+            candidate_set.emplace(-dist, ep_id);
+        } else {
+            lowerBound = std::numeric_limits<float>::max();
+            candidate_set.emplace(-lowerBound, ep_id);
+        }
+
+        visited_array[ep_id] = visited_array_tag;
+        // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+        while (!candidate_set.empty()) {
+            std::pair<float, tableint> current_node_pair = candidate_set.top();
+            if ((-current_node_pair.first) > lowerBound &&
+                (top_candidates.size() == ef || (!isIdAllowed && !has_deletions))) {
+                break;
+            }
+            candidate_set.pop();
+
+            tableint current_node_id = current_node_pair.second;
+            int* data = (int*)get_linklist0(current_node_id);
+            size_t size = getListCount((linklistsizeint*)data);
+            //                bool cur_node_deleted = isMarkedDeleted(current_node_id);
+            if (collect_metrics) {
+                metric_hops_++;
+                metric_distance_computations_ += size;
+            }
+
+            auto vector_data_ptr = data_level0_memory_->GetElementPtr((*(data + 1)), offsetData_);
+#ifdef USE_SSE
+            _mm_prefetch((char*)(visited_array + *(data + 1)), _MM_HINT_T0);
+            _mm_prefetch((char*)(visited_array + *(data + 1) + 64), _MM_HINT_T0);
+            _mm_prefetch(vector_data_ptr, _MM_HINT_T0);
+            _mm_prefetch((char*)(data + 2), _MM_HINT_T0);
+#endif
+
+            for (size_t j = 1; j <= size; j++) {
+                int candidate_id = *(data + j);
+                size_t pre_l = std::min(j, size - 2);
+                auto vector_data_ptr =
+                    data_level0_memory_->GetElementPtr((*(data + pre_l + 1)), offsetData_);
+#ifdef USE_SSE
+                _mm_prefetch((char*)(visited_array + *(data + pre_l + 1)), _MM_HINT_T0);
+                _mm_prefetch(vector_data_ptr, _MM_HINT_T0);  ////////////
+#endif
+                if (!(visited_array[candidate_id] == visited_array_tag)) {
+                    visited_array[candidate_id] = visited_array_tag;
+
+                    char* currObj1 = (getDataByInternalId(candidate_id));
+                    float dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
+                    if (top_candidates.size() < ef || lowerBound > dist) {
+                        candidate_set.emplace(-dist, candidate_id);
+                        auto vector_data_ptr = data_level0_memory_->GetElementPtr(
+                            candidate_set.top().second, offsetLevel0_);
+#ifdef USE_SSE
+                        _mm_prefetch(vector_data_ptr, _MM_HINT_T0);
+#endif
+
+                        if ((!has_deletions || !isMarkedDeleted(candidate_id)) &&
+                            ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(candidate_id)))){
+                            if(top_candidates.size() == ef){
+                                // if(!sorted){
+                                //     // 第一次满才需要排序 没满之前无脑往里面装就行 满了开始建堆
+                                //     createHeap(top_candidates, ef);
+                                //     sorted = true;
+                                // }
+                                // 置换最前面的,然后调整排序
+                                top_candidates[0] = std::make_pair(dist, candidate_id);
+                                downAdjust(top_candidates, ef, 0);
+                                lowerBound = top_candidates[0].first;
+                            } else {
+                                top_candidates.emplace_back(dist, candidate_id);
+                                upAdjust(top_candidates, top_candidates.size() - 1);
+                                if(lowerBound < dist){
+                                    lowerBound = dist;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 此时的堆 不保证vector内是有序的
+        // heapSort(top_candidates, ef);
+        visited_list_pool_->releaseVisitedList(vl);
+        // auto finish = std::chrono::steady_clock::now();
+        // std::chrono::duration<double, std::milli> duration = finish - start;
+        // double time_cost = duration.count();
+        // vsag::logger::debug("ChenNingjie: baselayer time = {0}", time_cost);
+        return top_candidates;
+    }
+
+
     template <bool has_deletions, bool collect_metrics = false>
     std::priority_queue<std::pair<float, tableint>,
                         vsag::Vector<std::pair<float, tableint>>,
@@ -537,8 +705,8 @@ public:
         }
 
         visited_array[ep_id] = visited_array_tag;
-
-        while (!candidate_set.empty()) {
+        // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+       while (!candidate_set.empty()) {
             std::pair<float, tableint> current_node_pair = candidate_set.top();
 
             if ((-current_node_pair.first) > lowerBound &&
@@ -599,8 +767,11 @@ public:
                 }
             }
         }
-
         visited_list_pool_->releaseVisitedList(vl);
+        // auto finish = std::chrono::steady_clock::now();
+        // std::chrono::duration<double, std::milli> duration = finish - start;
+        // double time_cost = duration.count();
+        // vsag::logger::debug("ChenNingjie: baselayer time = {0}", time_cost);
         return top_candidates;
     }
 
@@ -1660,6 +1831,8 @@ public:
         std::shared_ptr<float[]> normalize_query;
         normalize_vector(query_data, normalize_query);
         tableint currObj = enterpoint_node_;
+        // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+        // int count = 0;
         float curdist =
             fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
         // vsag::logger::debug("ChenNingjie: maxlevel_:{0}", maxlevel_);
@@ -1671,17 +1844,20 @@ public:
 
                 data = (unsigned int*)get_linklist(currObj, level);
                 int size = getListCount(data);
-                metric_hops_++;
-                metric_distance_computations_ += size;
+                // metric_hops_++;
+                // metric_distance_computations_ += size;
 
                 tableint* datal = (tableint*)(data + 1);
+#ifdef USE_SSE
+                _mm_prefetch(datal, _MM_HINT_T0);
+#endif
                 // vsag::logger::debug("ChenNingjie: maxlevel_的size:{0}", size);
                 for (int i = 0; i < size; i++) {
                     tableint cand = datal[i];
                     if (cand < 0 || cand > max_elements_)
                         throw std::runtime_error("cand error");
                     float d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
-
+                    // ++count;
                     if (d < curdist) {
                         curdist = d;
                         currObj = cand;
@@ -1691,31 +1867,50 @@ public:
             }
             // vsag::logger::debug("ChenNingjie: next level");
         }
-
-        std::priority_queue<std::pair<float, tableint>,
-                            vsag::Vector<std::pair<float, tableint>>,
-                            CompareByFirst>
-            top_candidates(allocator_);
-        // vsag::logger::debug("ChenNingjie: ef = {0}, k = {0}", ef, k);
-        if (num_deleted_) {
+        // auto finish = std::chrono::steady_clock::now();
+        // std::chrono::duration<double, std::milli> duration = finish - start;
+        // double time_cost = duration.count();
+        // vsag::logger::debug("ChenNingjie: time = {0}, count = {1}", time_cost, count);
+        
+        // std::priority_queue<std::pair<float, tableint>,
+        //                     vsag::Vector<std::pair<float, tableint>>,
+        //                     CompareByFirst>
+        //     top_candidates(allocator_);
+        // // vsag::logger::debug("ChenNingjie: ef = {0}, k = {0}", ef, k);
+        // // if (num_deleted_) {
+        // //     top_candidates =
+        // //         searchBaseLayerST<true, true>(currObj, query_data, std::max(ef, k), isIdAllowed);
+        // // } else {
+        //     top_candidates =
+        //         searchBaseLayerST<false, false>(currObj, query_data, std::max(ef, k), isIdAllowed);
+        // // }
+        // // vsag::logger::debug("ChenNingjie: top_candidates.size() = {0}", top_candidates.size());
+        // while (top_candidates.size() > k) {
+        //     top_candidates.pop();
+        // }
+        // // 这里感觉可以优化
+        // result.reserve(top_candidates.size());
+        // while (top_candidates.size() > 0) {
+        //     std::pair<float, tableint> rez = top_candidates.top();
+        //     result.emplace_back(getExternalLabel(rez.second));
+        //     top_candidates.pop();
+        // }
+        // return std::move(result);
+        std::vector<std::pair<float, tableint>> top_candidates;
             top_candidates =
-                searchBaseLayerST<true, true>(currObj, query_data, std::max(ef, k), isIdAllowed);
-        } else {
-            top_candidates =
-                searchBaseLayerST<false, true>(currObj, query_data, std::max(ef, k), isIdAllowed);
-        }
-        // vsag::logger::debug("ChenNingjie: top_candidates.size() = {0}", top_candidates.size());
+                obsearchBaseLayerST<false, false>(currObj, query_data, std::max(ef, k), nullptr);
         while (top_candidates.size() > k) {
-            top_candidates.pop();
+            top_candidates[0] = top_candidates[top_candidates.size() - 1];
+            top_candidates.pop_back();
+            downAdjust(top_candidates, top_candidates.size(), 0);
         }
-        // 这里感觉可以优化
-        result.reserve(top_candidates.size());
-        while (top_candidates.size() > 0) {
-            std::pair<float, tableint> rez = top_candidates.top();
-            result.emplace_back(getExternalLabel(rez.second));
-            top_candidates.pop();
+        while (top_candidates.size() > 0){
+            result.emplace_back(getExternalLabel(top_candidates[0].second));
+            top_candidates[0] = top_candidates[top_candidates.size() - 1];
+            top_candidates.pop_back();
+            downAdjust(top_candidates, top_candidates.size(), 0);
         }
-        return std::move(result);
+        return result;
     }
     std::priority_queue<std::pair<float, labeltype>>
     searchKnn(const void* query_data,
