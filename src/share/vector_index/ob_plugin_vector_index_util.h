@@ -17,6 +17,8 @@
 #include "common/object/ob_obj_type.h"
 #include "common/row/ob_row_iterator.h"
 #include "lib/vector/ob_vector_util.h"
+#include "lib/container/ob_fixed_array.h"
+#include "sql/engine/expr/ob_expr.h"
 
 namespace oceanbase
 {
@@ -52,6 +54,7 @@ public:
 
   virtual int get_next_row(ObNewRow *&row) override;
   virtual int get_next_rows(ObNewRow *&row, int64_t &size) override;
+  int get_next_rows_directly (sql::ExprFixedArray& exprs, int64_t &size, sql::ObEvalCtx* eval_ctx);
   virtual int get_next_row() override { return OB_NOT_IMPLEMENT; }
   virtual void reset() override;
 

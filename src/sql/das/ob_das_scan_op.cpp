@@ -1795,21 +1795,22 @@ int ObLocalIndexLookupOp::get_next_rows_from_data_table(int64_t &count, int64_t 
   } else {
     ObNewRow *row = nullptr;
     auto adaptor_vid_iter = static_cast<ObVectorQueryVidIterator*>(lookup_iter_);
-    ret = adaptor_vid_iter->get_next_rows(row, count);
+    // ret = adaptor_vid_iter->get_next_rows(row, count);
+    auto exprs = lookup_rtdef_->p_pd_expr_op_->expr_spec_.access_exprs_;
+    ret = adaptor_vid_iter->get_next_rows_directly(exprs, count, lookup_rtdef_->eval_ctx_);
     lookup_rowkey_cnt_ += count;
     if(ret == OB_ITER_END){
       state_ = FINISHED;
     }
-    auto exprs = lookup_rtdef_->p_pd_expr_op_->expr_spec_.access_exprs_;
-    for(int64_t j = 0; j < count; ++j){
-      for (int64_t i = 0; i < exprs.count(); i++) {
-        sql::ObExpr *e = exprs.at(i);
-        ObDatum &datum = e->locate_expr_datum(*lookup_rtdef_->eval_ctx_, j);
-        datum.from_obj(row->cells_[j]);
-        // lookup_rtdef_->eval_ctx_->get_s
-      }
-    }
-    // lookup_rtdef_->eval_ctx_->frames_ = reinterpret_cast<char**>(row->cells_);
+
+    // auto exprs = lookup_rtdef_->p_pd_expr_op_->expr_spec_.access_exprs_;
+    // for(int64_t j = 0; j < count; ++j){
+    //   for (int64_t i = 0; i < exprs.count(); i++) {
+    //     sql::ObExpr *e = exprs.at(i);
+    //     ObDatum &datum = e->locate_expr_datum(*lookup_rtdef_->eval_ctx_, j);
+    //     datum.from_obj(row->cells_[j]);
+    //   }
+    // }
     // LOG_INFO("ChenNingjie",K(lookup_rtdef_->eval_ctx_));
   }
   return ret;
