@@ -1591,15 +1591,15 @@ int ObPluginVectorIndexAdaptor::vsag_query_vids(ObVectorQueryAdaptorResultContex
                                                 ObVectorQueryVidIterator *&vids_iter)
 {
   INIT_SUCC(ret);
-  roaring::api::roaring64_bitmap_t *ibitmap = nullptr;
+  // roaring::api::roaring64_bitmap_t *ibitmap = nullptr;
   roaring::api::roaring64_bitmap_t *dbitmap = nullptr;
 
   int64_t *merge_vids = nullptr;
-  const int64_t *delta_vids = nullptr;
+  // const int64_t *delta_vids = nullptr;
   const int64_t *snap_vids = nullptr;
-  const float *delta_distances = nullptr;
+  // const float *delta_distances = nullptr;
   const float *snap_distances = nullptr;
-  int64_t delta_res_cnt = 0;
+  // int64_t delta_res_cnt = 0;
   int64_t snap_res_cnt = 0;
   // LOG_INFO("ChenNingjie: query_cond->query_limit_:", K(query_cond->query_limit_));
   // LOG_INFO("ChenNingjie: query_cond->ef_search_:", K(query_cond->ef_search_));
@@ -1624,23 +1624,23 @@ int ObPluginVectorIndexAdaptor::vsag_query_vids(ObVectorQueryAdaptorResultContex
 //   }
 // #endif
 
-  if (OB_SUCC(ret)) {
-    lib::ObMallocHookAttrGuard malloc_guard(lib::ObMemAttr(tenant_id_, "VIndexVsagADP"));
-    TCRLockGuard lock_guard(incr_data_->mem_data_rwlock_);
-    if (OB_FAIL(is_mem_data_init_atomic(VIRT_INC) &&
-                obvectorutil::knn_search(get_incr_index(),
-                                         query_vector,
-                                         dim,
-                                         query_cond->query_limit_,
-                                         delta_distances,
-                                         delta_vids,
-                                         delta_res_cnt,
-                                         query_cond->ef_search_,
-                                         ibitmap))) {
-      ret = ObPluginVectorIndexHelper::vsag_errcode_2ob(ret);
-      LOG_WARN("knn search delta failed.", K(ret), K(dim));
-    }
-  }
+  // if (OB_SUCC(ret)) {
+  //   lib::ObMallocHookAttrGuard malloc_guard(lib::ObMemAttr(tenant_id_, "VIndexVsagADP"));
+  //   TCRLockGuard lock_guard(incr_data_->mem_data_rwlock_);
+  //   if (OB_FAIL(is_mem_data_init_atomic(VIRT_INC) &&
+  //               obvectorutil::knn_search(get_incr_index(),
+  //                                        query_vector,
+  //                                        dim,
+  //                                        query_cond->query_limit_,
+  //                                        delta_distances,
+  //                                        delta_vids,
+  //                                        delta_res_cnt,
+  //                                        query_cond->ef_search_,
+  //                                        ibitmap))) {
+  //     ret = ObPluginVectorIndexHelper::vsag_errcode_2ob(ret);
+  //     LOG_WARN("knn search delta failed.", K(ret), K(dim));
+  //   }
+  // }
   if (OB_SUCC(ret)) {
     lib::ObMallocHookAttrGuard malloc_guard(lib::ObMemAttr(tenant_id_, "VIndexVsagADP"));
     TCRLockGuard lock_guard(snap_data_->mem_data_rwlock_);
@@ -1661,12 +1661,14 @@ int ObPluginVectorIndexAdaptor::vsag_query_vids(ObVectorQueryAdaptorResultContex
   }
   if (OB_FAIL(ret)) {
   } else {
-    int64_t actual_res_cnt = 0;
-    const ObVsagQueryResult delta_data = {delta_res_cnt, delta_vids, delta_distances};
+    int64_t actual_res_cnt = snap_res_cnt;
+    // const ObVsagQueryResult delta_data = {delta_res_cnt, delta_vids, delta_distances};
+    const ObVsagQueryResult delta_data = {0, nullptr, nullptr};
     const ObVsagQueryResult snap_data = {snap_res_cnt, snap_vids, snap_distances};
-    uint64_t tmp_result_cnt = delta_res_cnt + snap_res_cnt;
-    uint64_t max_res_cnt = tmp_result_cnt < query_cond->query_limit_ ? tmp_result_cnt : query_cond->query_limit_;
-    LOG_DEBUG("query result info", K(delta_res_cnt), K(snap_res_cnt));
+    // uint64_t tmp_result_cnt = delta_res_cnt + snap_res_cnt;
+    // uint64_t max_res_cnt = tmp_result_cnt < query_cond->query_limit_ ? tmp_result_cnt : query_cond->query_limit_;
+    uint64_t max_res_cnt = snap_res_cnt < query_cond->query_limit_ ? snap_res_cnt : query_cond->query_limit_;
+    // LOG_DEBUG("query result info", K(delta_res_cnt), K(snap_res_cnt));
 
     if (max_res_cnt == 0) {
       // when max_res_cnt == 0, it means (snap_res_cnt == 0 && delta_res_cnt == 0), there is no data in table, do not need alloc memory for res_vid_array
@@ -1685,37 +1687,38 @@ int ObPluginVectorIndexAdaptor::vsag_query_vids(ObVectorQueryAdaptorResultContex
     } else if (OB_FAIL(vids_iter->init(actual_res_cnt, merge_vids, ctx->allocator_))) {
       LOG_WARN("iter init failed.", K(ret), K(actual_res_cnt), K(merge_vids), K(ctx->allocator_));
     } else if (actual_res_cnt == 0) {
-      LOG_INFO("query vector result 0", K(actual_res_cnt), K(delta_res_cnt), K(snap_res_cnt));
+      // LOG_INFO("query vector result 0", K(actual_res_cnt), K(delta_res_cnt), K(snap_res_cnt));
+      LOG_INFO("query vector result 0", K(actual_res_cnt), K(snap_res_cnt));
     }
   }
   // free in the end
-  if (OB_NOT_NULL(ibitmap)) {
-    lib::ObMallocHookAttrGuard malloc_guard(lib::ObMemAttr(tenant_id_, "VIBitmapADP"));
-    roaring64_bitmap_free(ibitmap);
-    ibitmap = nullptr;
-  }
+  // if (OB_NOT_NULL(ibitmap)) {
+  //   lib::ObMallocHookAttrGuard malloc_guard(lib::ObMemAttr(tenant_id_, "VIBitmapADP"));
+  //   roaring64_bitmap_free(ibitmap);
+  //   ibitmap = nullptr;
+  // }
 
-  if (delta_res_cnt != 0) {
-    if (delta_distances != nullptr) {
-      incr_data_->mem_ctx_->Deallocate((void *)delta_distances);
-      delta_distances = nullptr;
-    }
+  // if (delta_res_cnt != 0) {
+  //   if (delta_distances != nullptr) {
+  //     incr_data_->mem_ctx_->Deallocate((void *)delta_distances);
+  //     delta_distances = nullptr;
+  //   }
 
-    if (delta_vids != nullptr) {
-      incr_data_->mem_ctx_->Deallocate((void *)delta_vids);
-      delta_vids = nullptr;
-    }
-  }
+  //   if (delta_vids != nullptr) {
+  //     incr_data_->mem_ctx_->Deallocate((void *)delta_vids);
+  //     delta_vids = nullptr;
+  //   }
+  // }
 
   if (snap_res_cnt != 0) {
-    if (snap_distances != nullptr) {
-      snap_data_->mem_ctx_->Deallocate((void *)snap_distances);
-      snap_distances = nullptr;
-    }
+    // if (snap_distances != nullptr) {
+    //   snap_data_->mem_ctx_->Deallocate((void *)snap_distances);
+    //   snap_distances = nullptr;
+    // }
 
     if (snap_vids != nullptr) {
       snap_data_->mem_ctx_->Deallocate((void *)snap_vids);
-      snap_distances = nullptr;
+      snap_vids = nullptr;
     }
   }
   LOG_TRACE("now all_vsag_used is: ", K(ATOMIC_LOAD(all_vsag_use_mem_)));

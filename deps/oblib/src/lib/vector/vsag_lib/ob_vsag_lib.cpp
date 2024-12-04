@@ -144,7 +144,7 @@ int HnswIndexHandler::knn_search(const vsag::DatasetPtr& query, int64_t topk,
         //result的生命周期
         result.value()->Owner(false);
         ids = result.value()->GetIds();
-        dist = result.value()->GetDistances();
+        // dist = result.value()->GetDistances();
         result_size = result.value()->GetDim();
         // print the results
         // for (int64_t i = 0; i < result_size; ++i) {
