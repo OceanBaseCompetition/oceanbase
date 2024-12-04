@@ -537,6 +537,7 @@ int ObDASMergeIter::get_next_seq_rows(int64_t &count, int64_t capacity)
   } else if (OB_UNLIKELY(seq_task_idx_ == das_tasks_arr_.count())) {
     ret = OB_ITER_END;
   } else {
+    // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     while (OB_SUCC(ret) && !got_rows) {
       clear_evaluated_flag();
       ObDASScanOp *scan_op = DAS_SCAN_OP(das_tasks_arr_.at(seq_task_idx_));
@@ -548,10 +549,14 @@ int ObDASMergeIter::get_next_seq_rows(int64_t &count, int64_t capacity)
           reset_datum_ptr(scan_op, capacity);
         }
         count = 0;
+        // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
         ret = scan_op->get_output_result_iter()->get_next_rows(count, capacity);
-        if (OB_ITER_END == ret && count > 0) {
-          ret = OB_SUCCESS;
-        }
+        // auto finish = std::chrono::steady_clock::now();
+        // std::chrono::duration<double, std::milli> duration = finish - start;
+        // LOG_INFO("ChenNingjie: ObDomainIndexLookupOp::get_next_rows耗时", K(duration.count()), KR(ret), K(count));
+        // if (OB_ITER_END == ret && count > 0) {
+        //   ret = OB_SUCCESS;
+        // }
         if (OB_SUCC(ret)) {
           got_rows = true;
           if (!scan_op->is_local_task()) {
@@ -575,6 +580,9 @@ int ObDASMergeIter::get_next_seq_rows(int64_t &count, int64_t capacity)
         }
       }
     } // while end
+    // auto finish = std::chrono::steady_clock::now();
+    // std::chrono::duration<double, std::milli> duration = finish - start;
+    // LOG_INFO("ChenNingjie: get_next_seq_rows耗时", K(duration.count()));
   }
   return ret;
 }

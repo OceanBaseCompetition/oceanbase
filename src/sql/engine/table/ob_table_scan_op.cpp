@@ -2029,6 +2029,7 @@ int ObTableScanOp::get_next_row_with_das()
 int ObTableScanOp::get_next_batch_with_das(int64_t &count, int64_t capacity)
 {
   int ret = OB_SUCCESS;
+  // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
   int64_t batch_size = capacity;
   //it means multi-partition limit pushed down in DAS TSC
   //need to calc final limit row
@@ -2043,13 +2044,13 @@ int ObTableScanOp::get_next_batch_with_das(int64_t &count, int64_t capacity)
     // It's hard to use, we split it into two calls here since get_next_rows() is reentrant
     // when got OB_ITER_END.
     ret = output_->get_next_rows(count, batch_size);
-    if (OB_ITER_END == ret && count > 0) {
-      ret = OB_SUCCESS;
-    }
-    if (OB_FAIL(ret)) {
-      if (OB_ITER_END != ret) {
+    // if (OB_ITER_END == ret && count > 0) {
+    //   ret = OB_SUCCESS;
+    // }
+    if (OB_FAIL(ret) && OB_ITER_END != ret) {
+      // if (OB_ITER_END != ret) {
         LOG_WARN("get next batch from das result failed", K(ret));
-      }
+      // }
     } else {
       // We need do filter first before do the limit.
       // See the issue 47201028.
@@ -2093,13 +2094,13 @@ int ObTableScanOp::get_next_batch_with_das(int64_t &count, int64_t capacity)
     // when got OB_ITER_END.
     ret = output_->get_next_rows(count, batch_size);
     brs_.all_rows_active_ = true;
-    if (OB_ITER_END == ret && count > 0) {
-      ret = OB_SUCCESS;
-    }
-    if (OB_FAIL(ret)) {
-      if (OB_ITER_END != ret) {
+    // if (OB_ITER_END == ret && count > 0) {
+    //   ret = OB_SUCCESS;
+    // }
+    if (OB_FAIL(ret) && OB_ITER_END != ret) {
+      // if (OB_ITER_END != ret) {
         LOG_WARN("get next batch from das result failed", K(ret));
-      }
+      // }
     } else {
       // We need do filter first before do the limit.
       // See the issue 47201028.
@@ -2127,6 +2128,9 @@ int ObTableScanOp::get_next_batch_with_das(int64_t &count, int64_t capacity)
       }
     }
   }
+  // auto finish = std::chrono::steady_clock::now();
+  // std::chrono::duration<double, std::milli> duration = finish - start;
+  // LOG_INFO("ChenNingjie: get_next_batch_with_das循环耗时", K(duration.count()));
   return ret;
 }
 
@@ -2224,6 +2228,7 @@ int ObTableScanOp::inner_get_next_row_for_tsc()
 int ObTableScanOp::inner_get_next_batch(const int64_t max_row_cnt)
 {
   int ret = OB_SUCCESS;
+  // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
   int tmp_ret = OB_E(EventTable::EN_ENABLE_RANDOM_TSC) OB_SUCCESS;
   bool enable_random_output = (tmp_ret != OB_SUCCESS);
 
@@ -2259,6 +2264,9 @@ int ObTableScanOp::inner_get_next_batch(const int64_t max_row_cnt)
       adjust_rand_output_brs(rand_append_bits);
     }
   }
+  // auto finish = std::chrono::steady_clock::now();
+  // std::chrono::duration<double, std::milli> duration = finish - start;
+  // LOG_INFO("ChenNingjie: ObTableScanOp::inner_get_next_batch", K(duration.count()));
   return ret;
 }
 

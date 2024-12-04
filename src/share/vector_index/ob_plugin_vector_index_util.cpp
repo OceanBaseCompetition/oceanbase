@@ -98,6 +98,9 @@ int ObVectorQueryVidIterator::get_next_rows_directly(sql::ExprFixedArray& exprs,
       }
     }
     size = index;
+    if(cur_pos_ == total_){
+      ret = OB_ITER_END;
+    }
   } else {
     ret = OB_ITER_END;
   }

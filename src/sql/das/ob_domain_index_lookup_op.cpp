@@ -229,7 +229,7 @@ int ObDomainIndexLookupOp::get_next_rows(int64_t &count, int64_t capacity)
         // 从结果集中提取
         if (OB_FAIL(get_next_rows_from_data_table(count, capacity))) {
           if (OB_ITER_END == ret) {
-            ret = OB_SUCCESS;
+            // ret = OB_SUCCESS;
             if (count > 0) {
               lookup_row_cnt_ += count;
               got_next_row = true;
@@ -260,6 +260,11 @@ int ObDomainIndexLookupOp::get_next_rows(int64_t &count, int64_t capacity)
         // }
         // fout.close();
         ret = OB_ITER_END;
+        // LOG_INFO("ChenNingjie: 各个阶段耗时详情");
+        // for(int i = 0; i < 4; ++i){
+        //   double time_cost = duration_[i].count();
+        //   LOG_INFO("ChenNingjie: ", K(i), K(time_cost));
+        // }
         break;
       }
       default: {
