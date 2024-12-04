@@ -1301,14 +1301,14 @@ int ObOperator::get_next_batch(const int64_t max_row_cnt, const ObBatchRows *&ba
         } else {
           LOG_DEBUG("inner get next batch", "id", spec_.get_id(), "op_name", op_name(), K(brs_));
         }
-        if (OB_SUCC(ret)) {
-          // FIXME bin.lb: accumulate bit count is CPU consuming, disable in perf mode?
-          skipped_rows_count = brs_.skip_->accumulate_bit_cnt(brs_.size_);
-          if (OB_UNLIKELY(brs_.size_ == skipped_rows_count)) {
-            reset_batchrows();
-            continue;
-          }
-        }
+        // if (OB_SUCC(ret)) {
+        //   // FIXME bin.lb: accumulate bit count is CPU consuming, disable in perf mode?
+        //   skipped_rows_count = brs_.skip_->accumulate_bit_cnt(brs_.size_);
+        //   if (OB_UNLIKELY(brs_.size_ == skipped_rows_count)) {
+        //     reset_batchrows();
+        //     continue;
+        //   }
+        // }
         if (OB_SUCC(ret) && (ctx_.get_my_session()->is_user_session() || spec_.plan_->get_phy_plan_hint().monitor_)) {
           IGNORE_RETURN try_register_rt_monitor_node(brs_.size_);
         }

@@ -1828,8 +1828,8 @@ public:
         if (cur_element_count_ == 0)
             return result;
 
-        std::shared_ptr<float[]> normalize_query;
-        normalize_vector(query_data, normalize_query);
+        // std::shared_ptr<float[]> normalize_query;
+        // normalize_vector(query_data, normalize_query);
         tableint currObj = enterpoint_node_;
         // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
         // int count = 0;
@@ -1922,8 +1922,8 @@ public:
         if (cur_element_count_ == 0)
             return result;
 
-        std::shared_ptr<float[]> normalize_query;
-        normalize_vector(query_data, normalize_query);
+        // std::shared_ptr<float[]> normalize_query;
+        // normalize_vector(query_data, normalize_query);
         tableint currObj = enterpoint_node_;
         float curdist =
             fstdistfunc_(query_data, getDataByInternalId(enterpoint_node_), dist_func_param_);
