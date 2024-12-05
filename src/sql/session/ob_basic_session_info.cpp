@@ -3896,7 +3896,7 @@ int ObBasicSessionInfo::get_show_ddl_in_compat_mode(bool &show_ddl_in_compat_mod
 int ObBasicSessionInfo::get_ob_hnsw_ef_search(uint64_t &ob_hnsw_ef_search) const
 {
   // return get_uint64_sys_var(SYS_VAR_OB_HNSW_EF_SEARCH, ob_hnsw_ef_search);
-  ob_hnsw_ef_search = 128;
+  ob_hnsw_ef_search = 75;
   return OB_SUCCESS;
 }
 
