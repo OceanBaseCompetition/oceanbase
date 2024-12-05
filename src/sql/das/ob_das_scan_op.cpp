@@ -495,7 +495,7 @@ int ObDASScanOp::open_op()
         LOG_WARN("iter tree failed to do table scan", K(ret));
       }
     }
-  } else if (OB_FAIL(do_table_scan())) {
+  } else if (get_lookup_ctdef() == nullptr && OB_FAIL(do_table_scan())) { // 向量索引查找的时候可以不用做这个table_scan，但是构建索引的时候要必须走，对隐藏表select的时候会报错
     if (OB_SNAPSHOT_DISCARDED == ret && scan_param_.fb_snapshot_.is_valid()) {
       ret = OB_INVALID_QUERY_TIMESTAMP;
     } else if (OB_TRY_LOCK_ROW_CONFLICT != ret) {
