@@ -110,6 +110,19 @@ int ObVectorIndexLookupOp::init(const ObDASBaseCtDef *table_lookup_ctdef,
           LOG_WARN("failed to set vec index param", K(ret));
         }
       }
+      if(OB_ISNULL(search_vec_) || OB_ISNULL(sort_rtdef_) || OB_ISNULL(sort_rtdef_->eval_ctx_)){
+        // do nothing
+        LOG_WARN("ChenNingjie: 没有提前解析vec_datum");
+      }else{
+        // 在这里提前用一个线程去为set_vector_query_condition做准备
+        vec_datum_ = nullptr;
+        std::thread worker([&](){
+          std::lock_guard<std::mutex> lock(mtx_);
+          search_vec_->eval(*(sort_rtdef_->eval_ctx_), vec_datum_);
+          cv_.notify_one();
+        });
+        worker.detach();
+      }
 
       if (OB_SUCC(ret)) {
         is_inited_ = true;
@@ -1296,7 +1309,10 @@ int ObVectorIndexLookupOp::set_vector_query_condition(ObVectorQueryConditions &q
     query_cond.query_scn_ = snapshot_scan_param_.snapshot_.core_.version_;
     ObSQLSessionInfo *session = nullptr;
     uint64_t ob_hnsw_ef_search = 0;
-    ObDatum *vec_datum = NULL;
+    // ObDatum *vec_datum = NULL;
+    std::unique_lock<std::mutex> lock(mtx_);
+    cv_.wait(lock, [this]() { return vec_datum_ != nullptr; });
+
     if (OB_FALSE_IT(session = sort_rtdef_->eval_ctx_->exec_ctx_.get_my_session())) {
     } else if (OB_ISNULL(session)) {
       ret = OB_ERR_UNEXPECTED;
@@ -1304,9 +1320,11 @@ int ObVectorIndexLookupOp::set_vector_query_condition(ObVectorQueryConditions &q
     } else if (OB_FAIL(session->get_ob_hnsw_ef_search(ob_hnsw_ef_search))) {
       LOG_WARN("fail to get ob_hnsw_ef_search", K(ret));
     } else if (OB_FALSE_IT(query_cond.ef_search_ = ob_hnsw_ef_search)) {
-    } else if (OB_UNLIKELY(OB_FAIL(search_vec_->eval(*(sort_rtdef_->eval_ctx_), vec_datum)))) {
-      LOG_WARN("eval vec arg failed", K(ret));
-    } else if (OB_FALSE_IT(query_cond.query_vector_ = vec_datum->get_string())) {
+    } 
+    // else if (OB_UNLIKELY(OB_FAIL(search_vec_->eval(*(sort_rtdef_->eval_ctx_), vec_datum)))) {
+    //   LOG_WARN("eval vec arg failed", K(ret));
+    // } 
+    else if (OB_FALSE_IT(query_cond.query_vector_ = vec_datum_->get_string())) {
     } else if (OB_FAIL(sql::ObTextStringHelper::read_real_string_data(&vec_op_alloc_,
                                                                       ObLongTextType,
                                                                       CS_TYPE_BINARY,
