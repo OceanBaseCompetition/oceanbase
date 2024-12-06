@@ -180,8 +180,9 @@ private:
   int64_t dim_;
 
   ObDatum *vec_datum_;
-  std::mutex mtx_; // 条件变量的锁
-  std::condition_variable cv_; // 提前解析vec_datum_的条件变量
+  std::future<ObDatum *> future_; 
+  // std::mutex mtx_; // 条件变量的锁
+  // std::condition_variable cv_; // 提前解析vec_datum_的条件变量
 };
 
 }  // namespace sql
