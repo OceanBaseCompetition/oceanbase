@@ -180,11 +180,56 @@ private:
   int64_t dim_;
 
   ObDatum *vec_datum_;
-  std::future<ObDatum *> future_; 
-  // std::mutex mtx_; // 条件变量的锁
-  // std::condition_variable cv_; // 提前解析vec_datum_的条件变量
+  // std::future<ObDatum *> future_; 
+  std::mutex mtx_; // 条件变量的锁
+  std::condition_variable cv_; // 提前解析vec_datum_的条件变量
 };
 
+// 解析的单例工作线程
+class ParseWoker{
+  public:
+    static ParseWoker* getInstance(){
+      // call_once是C++11确保只执行一次
+      std::call_once(flag, []{instance_.store(new ParseWoker(), std::memory_order_release);});
+      return instance_.load(std::memory_order_acquire);
+    }
+
+    // 提交任务
+    void submitTask(const std::function<void()>& task) {
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            task_queue_.emplace(task);
+        }
+        cv_.notify_one();
+    }
+
+  private:
+    ParseWoker(){
+      worker_thread_ = std::thread(&ParseWoker::run, this);
+    };
+    ParseWoker(const ParseWoker&) = delete;
+    ParseWoker& operator=(const ParseWoker&) = delete;
+
+    void run() {
+      while (true) {
+          std::function<void()> task;
+          {
+              std::unique_lock<std::mutex> lock(mutex_);
+              cv_.wait(lock, [this]() { return !task_queue_.empty(); });
+              task = std::move(task_queue_.front());
+              task_queue_.pop();
+          }
+          task(); // 执行任务
+      }
+    }
+    std::queue<std::function<void()>> task_queue_;
+    std::thread worker_thread_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
+
+    static std::atomic<ParseWoker*> instance_;
+    static std::once_flag flag;
+};
 }  // namespace sql
 }  // namespace oceanbase
 #endif /* OBDEV_SRC_SQL_DAS_OB_VECTOR_INDEX_LOOKUP_OP_H_ */

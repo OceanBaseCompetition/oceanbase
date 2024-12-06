@@ -116,16 +116,25 @@ int ObVectorIndexLookupOp::init(const ObDASBaseCtDef *table_lookup_ctdef,
       }else{
         // 在这里提前用一个线程去为set_vector_query_condition做准备
         vec_datum_ = nullptr;
+        // -- 单例工作线程
+        ParseWoker::getInstance()->submitTask([&](){
+          std::lock_guard<std::mutex> lock(mtx_);
+          search_vec_->eval(*(sort_rtdef_->eval_ctx_), vec_datum_);
+          cv_.notify_one();
+        });
+        // -- 多线程
         // std::thread worker([&](){
         //   std::lock_guard<std::mutex> lock(mtx_);
         //   search_vec_->eval(*(sort_rtdef_->eval_ctx_), vec_datum_);
         //   cv_.notify_one();
         // });
         // worker.detach();
-        future_ = std::async(std::launch::async, [this]() {
-            search_vec_->eval(*(sort_rtdef_->eval_ctx_), vec_datum_);
-            return vec_datum_; // 返回结果
-        });
+
+        // -- 异步
+        // future_ = std::async(std::launch::async, [this]() {
+        //     search_vec_->eval(*(sort_rtdef_->eval_ctx_), vec_datum_);
+        //     return vec_datum_; // 返回结果
+        // });
       }
 
       if (OB_SUCC(ret)) {
@@ -1314,9 +1323,11 @@ int ObVectorIndexLookupOp::set_vector_query_condition(ObVectorQueryConditions &q
     ObSQLSessionInfo *session = nullptr;
     uint64_t ob_hnsw_ef_search = 0;
     // ObDatum *vec_datum = NULL;
-    // std::unique_lock<std::mutex> lock(mtx_);
-    // cv_.wait(lock, [this]() { return vec_datum_ != nullptr; });
-    vec_datum_ = future_.get();
+    {
+      std::unique_lock<std::mutex> lock(mtx_);
+      cv_.wait(lock, [this]() { return vec_datum_ != nullptr; });
+    }
+    // vec_datum_ = future_.get();
     if (OB_FALSE_IT(session = sort_rtdef_->eval_ctx_->exec_ctx_.get_my_session())) {
     } else if (OB_ISNULL(session)) {
       ret = OB_ERR_UNEXPECTED;
@@ -1340,6 +1351,8 @@ int ObVectorIndexLookupOp::set_vector_query_condition(ObVectorQueryConditions &q
   return ret;
 }
 
-
+// 解析的单例工作线程
+std::atomic<ParseWoker*> ParseWoker::instance_{nullptr};
+std::once_flag ParseWoker::flag;
 }  // namespace sql
 }  // namespace oceanbase
