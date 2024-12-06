@@ -180,9 +180,10 @@ private:
   int64_t dim_;
 
   ObDatum *vec_datum_;
+  std::atomic<bool> vec_ready_{false};
   // std::future<ObDatum *> future_; 
-  std::mutex mtx_; // 条件变量的锁
-  std::condition_variable cv_; // 提前解析vec_datum_的条件变量
+  // std::mutex mtx_; // 条件变量的锁
+  // std::condition_variable cv_; // 提前解析vec_datum_的条件变量
 };
 
 // 解析的单例工作线程
@@ -195,12 +196,18 @@ class ParseWoker{
     }
 
     // 提交任务
-    void submitTask(const std::function<void()>& task) {
-        {
-            std::unique_lock<std::mutex> lock(mutex_);
-            task_queue_.emplace(task);
-        }
-        cv_.notify_one();
+    // void submitTask(const std::function<void()>& task) {
+        // {
+        //     std::unique_lock<std::mutex> lock(mutex_);
+        //     task_queue_.emplace(task);
+        // }
+        // cv_.notify_one();
+    // }
+
+    template <typename Callable>
+    void submitTask(Callable&& task) {
+        task_ = std::forward<Callable>(task); // 提交任务
+        task_ready_ = true; // 标志任务可用
     }
 
   private:
@@ -212,20 +219,27 @@ class ParseWoker{
 
     void run() {
       while (true) {
-          std::function<void()> task;
-          {
-              std::unique_lock<std::mutex> lock(mutex_);
-              cv_.wait(lock, [this]() { return !task_queue_.empty(); });
-              task = std::move(task_queue_.front());
-              task_queue_.pop();
+          // std::function<void()> task;
+          // {
+              // std::unique_lock<std::mutex> lock(mutex_);
+              // cv_.wait(lock, [this]() { return !task_queue_.empty(); });
+              // task = std::move(task_queue_.front());
+              // task_queue_.pop();
+          // }
+          // task();
+          if(task_ready_ ){
+            task_(); // 执行任务
+            task_ready_ = false;
           }
-          task(); // 执行任务
       }
     }
-    std::queue<std::function<void()>> task_queue_;
+    // std::queue<std::function<void()>> task_queue_;
     std::thread worker_thread_;
-    std::mutex mutex_;
-    std::condition_variable cv_;
+    // std::mutex mutex_;
+    // std::condition_variable cv_;
+
+    std::function<void()> task_;
+    std::atomic<bool> task_ready_{false};
 
     static std::atomic<ParseWoker*> instance_;
     static std::once_flag flag;
