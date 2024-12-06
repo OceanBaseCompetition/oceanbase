@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <queue>
 
 #include "default_allocator.h"
 #include "spdlog/spdlog.h"
@@ -101,4 +102,49 @@ try_parse_parameters(const std::string& json_string) {
     }
 }
 
+// 计算距离的单例工作线程
+class CalWoker{
+  public:
+    static CalWoker* getInstance(){
+      // call_once是C++11确保只执行一次
+      std::call_once(flag, []{instance_.store(new CalWoker(), std::memory_order_release);});
+      return instance_.load(std::memory_order_acquire);
+    }
+
+    // 提交任务
+    void submitTask(const std::function<void()>& task) {
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            task_queue_.emplace(task);
+        }
+        cv_.notify_one();
+    }
+
+  private:
+    CalWoker(){
+      worker_thread_ = std::thread(&CalWoker::run, this);
+    };
+    CalWoker(const CalWoker&) = delete;
+    CalWoker& operator=(const CalWoker&) = delete;
+
+    void run() {
+      while (true) {
+          std::function<void()> task;
+          {
+              std::unique_lock<std::mutex> lock(mutex_);
+              cv_.wait(lock, [this]() { return !task_queue_.empty(); });
+              task = std::move(task_queue_.front());
+              task_queue_.pop();
+          }
+          task(); // 执行任务
+      }
+    }
+    std::queue<std::function<void()>> task_queue_;
+    std::thread worker_thread_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
+
+    static std::atomic<CalWoker*> instance_;
+    static std::once_flag flag;
+};
 }  // namespace vsag
