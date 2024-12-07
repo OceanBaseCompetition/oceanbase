@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <queue>
 
 #include "default_allocator.h"
 #include "spdlog/spdlog.h"
@@ -101,4 +102,119 @@ try_parse_parameters(const std::string& json_string) {
     }
 }
 
+using tableint = unsigned int;
+struct CompareByFirst {
+    constexpr bool
+    operator()(std::pair<float, tableint> const& a,
+               std::pair<float, tableint> const& b) const noexcept {
+        return a.first < b.first;
+    }
+};
+
+// 维护优先队列的单例工作线程
+class QueueWoker{
+  public:
+    static QueueWoker* getInstance(){
+      // call_once是C++11确保只执行一次
+      std::call_once(flag, []{instance_.store(new QueueWoker(), std::memory_order_release);});
+      return instance_.load(std::memory_order_acquire);
+    }
+
+    // 唤醒该线程
+    void wakeUp(std::priority_queue<std::pair<float, tableint>,
+                        vsag::Vector<std::pair<float, tableint>>,
+                        CompareByFirst>* queue) {
+        p_queue_ = queue;
+        is_sleeping_.store(false, std::memory_order_release);
+        cv_.notify_one();
+    }
+
+    // 阻塞该线程
+    void sleep() {
+        p_queue_ = nullptr;
+        is_sleeping_.store(true, std::memory_order_release);
+    }
+
+    // 提交 pop 操作
+    void pop() {
+        task_queue_.push(Task(TaskType::POP));
+        std::atomic_thread_fence(std::memory_order_release);
+    }
+
+    // 提交 emplace 操作
+    void emplace(const float& dist, const tableint& ep_id) {
+        task_queue_.push(Task(TaskType::EMPLACE, dist, ep_id));
+        std::atomic_thread_fence(std::memory_order_release);
+    }
+
+    // 每次调用top都在empty之后，已经同步过了
+    std::pair<float, tableint> top() {
+        return p_queue_->top();
+    }
+    
+    // 调用empty需要同步
+    bool empty(){
+        std::atomic_thread_fence(std::memory_order_acquire);
+        while(!task_queue_.empty()){
+            std::atomic_thread_fence(std::memory_order_acquire);
+        }
+        return p_queue_->empty();
+    }
+
+  private:
+    QueueWoker(){
+        worker_thread_ = std::thread(&QueueWoker::run, this);
+    };
+    QueueWoker(const QueueWoker&) = delete;
+    QueueWoker& operator=(const QueueWoker&) = delete;
+    enum class TaskType {
+        EMPLACE,
+        POP,
+    };
+
+    struct Task {
+        TaskType type;
+        float dist;    // 对于EMPLACE任务，dist参数
+        tableint ep_id; // 对于EMPLACE任务，ep_id参数
+        Task() = default;
+        Task(TaskType t, float d = 0.0f, tableint id = 0)
+            : type(t), dist(d), ep_id(id) {}
+    };
+    void run() {
+        while (true) {
+            std::atomic_thread_fence(std::memory_order_acquire);
+            while (task_queue_.empty()){
+                if(is_sleeping_){ // 这里不load 耽误获取task_queue_ 如果真的被置为true，延迟睡眠影响不大
+                    std::unique_lock<std::mutex> lock(sleep_mutex_);
+                    cv_.wait(lock, [this]() { return !is_sleeping_;});
+                }
+                std::atomic_thread_fence(std::memory_order_acquire);
+            }
+            const Task& task = task_queue_.front();
+            switch(task.type){
+                case TaskType::EMPLACE:
+                    p_queue_->emplace(task.dist, task.ep_id);
+                    break;
+                case TaskType::POP:
+                    p_queue_->pop();
+                    break;
+            }
+            task_queue_.pop();
+            std::atomic_thread_fence(std::memory_order_release);
+        }
+    }
+    std::queue<Task> task_queue_; 
+    std::thread worker_thread_;
+    std::mutex mutex_;
+    std::condition_variable cv_;
+
+    std::atomic<bool> is_sleeping_{true};             // 是否处于睡眠状态
+    std::mutex sleep_mutex_;
+    std::priority_queue<std::pair<float, tableint>,
+                        vsag::Vector<std::pair<float, tableint>>,
+                        CompareByFirst>* p_queue_;
+
+    static std::atomic<QueueWoker*> instance_;
+    static std::once_flag flag;
+};
 }  // namespace vsag

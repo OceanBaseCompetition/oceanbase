@@ -570,9 +570,9 @@ public:
         top_candidates.reserve(ef+1);
         std::priority_queue<std::pair<float, tableint>,
                             vsag::Vector<std::pair<float, tableint>>,
-                            CompareByFirst>
+                            vsag::CompareByFirst>
             candidate_set(allocator_);
-        // bool sorted = false;
+        vsag::QueueWoker::getInstance()->wakeUp(&candidate_set);
 
         float lowerBound;
         if ((!has_deletions || !isMarkedDeleted(ep_id)) &&
@@ -581,29 +581,34 @@ public:
             lowerBound = dist;
             top_candidates.emplace_back(dist, ep_id);
             candidate_set.emplace(-dist, ep_id);
+            // vsag::QueueWoker::getInstance()->emplace(-dist, ep_id);
         } else {
             lowerBound = std::numeric_limits<float>::max();
             candidate_set.emplace(-lowerBound, ep_id);
+            // vsag::QueueWoker::getInstance()->emplace(-lowerBound, ep_id);
         }
 
         visited_array[ep_id] = visited_array_tag;
         // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-        while (!candidate_set.empty()) {
-            std::pair<float, tableint> current_node_pair = candidate_set.top();
+        // while (!candidate_set.empty()) {
+        while (!vsag::QueueWoker::getInstance()->empty()) {
+            // std::pair<float, tableint> current_node_pair = candidate_set.top();
+            std::pair<float, tableint> current_node_pair = vsag::QueueWoker::getInstance()->top();
             if ((-current_node_pair.first) > lowerBound &&
                 (top_candidates.size() == ef || (!isIdAllowed && !has_deletions))) {
                 break;
             }
-            candidate_set.pop();
+            // candidate_set.pop();
+            vsag::QueueWoker::getInstance()->pop();
 
             tableint current_node_id = current_node_pair.second;
             int* data = (int*)get_linklist0(current_node_id);
             size_t size = getListCount((linklistsizeint*)data);
             //                bool cur_node_deleted = isMarkedDeleted(current_node_id);
-            if (collect_metrics) {
-                metric_hops_++;
-                metric_distance_computations_ += size;
-            }
+            // if (collect_metrics) {
+            //     metric_hops_++;
+            //     metric_distance_computations_ += size;
+            // }
 
             auto vector_data_ptr = data_level0_memory_->GetElementPtr((*(data + 1)), offsetData_);
 #ifdef USE_SSE
@@ -628,12 +633,14 @@ public:
                     char* currObj1 = (getDataByInternalId(candidate_id));
                     float dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
                     if (top_candidates.size() < ef || lowerBound > dist) {
-                        candidate_set.emplace(-dist, candidate_id);
-                        auto vector_data_ptr = data_level0_memory_->GetElementPtr(
-                            candidate_set.top().second, offsetLevel0_);
-#ifdef USE_SSE
-                        _mm_prefetch(vector_data_ptr, _MM_HINT_T0);
-#endif
+                        // candidate_set.emplace(-dist, candidate_id);
+                        vsag::QueueWoker::getInstance()->emplace(-dist, candidate_id);
+//                         auto vector_data_ptr = data_level0_memory_->GetElementPtr(
+//                             vsag::QueueWoker::getInstance()->top().second, offsetLevel0_);
+//                             // candidate_set.top().second, offsetLevel0_);
+// #ifdef USE_SSE
+//                         _mm_prefetch(vector_data_ptr, _MM_HINT_T0);
+// #endif
 
                         if ((!has_deletions || !isMarkedDeleted(candidate_id)) &&
                             ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(candidate_id)))){
@@ -667,6 +674,7 @@ public:
         // std::chrono::duration<double, std::milli> duration = finish - start;
         // double time_cost = duration.count();
         // vsag::logger::debug("ChenNingjie: baselayer time = {0}", time_cost);
+        vsag::QueueWoker::getInstance()->sleep();
         return top_candidates;
     }
 
