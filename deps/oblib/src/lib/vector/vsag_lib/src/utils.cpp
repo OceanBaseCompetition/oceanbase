@@ -85,4 +85,7 @@ WindowResultQueue::GetAvgResult() const {
     return result / statstic_num;
 }
 
+// 计算距离的单例工作线程
+std::atomic<QueueWoker*> QueueWoker::instance_{nullptr};
+std::once_flag QueueWoker::flag;
 }  // namespace vsag
