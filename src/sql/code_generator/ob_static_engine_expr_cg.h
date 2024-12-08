@@ -440,7 +440,7 @@ private:
 
   enum class ObExprBatchSize {
     one = 1,
-    small = 10,
+    small = 8,
     full = 65535
   };
   // Certain exprs can NOT be executed vectorizely. Check the exps within this
