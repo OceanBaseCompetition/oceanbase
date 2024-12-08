@@ -25,37 +25,14 @@ inline uint64_t murmurhash64A(const void *key, int32_t len, uint64_t seed)
 
   const uint64_t *data = (const uint64_t *)key;
   const uint64_t *end = data + (len / 8);
-  // for (; len >= 8; len -= 8) {
-  //   uint64_t val = *data;
-  //   val *= multiply;
-  //   val ^= val >> rotate;
-  //   val *= multiply;
-  //   ret ^= val;
-  //   ret *= multiply;
-  //   ++data;
-  // }
-  // 循环展开
-  // 在处理对齐数据（len >= 8）时，可以对循环进行展开，以减少分支和指针运算。
-  // 使用64更慢,GPT给出的理由如下:
-  // 处理 8 个 uint64_t 时，需要 8 个变量（val1 到 val8）占用 CPU 寄存器，同时还需要寄存器保存 ret、multiply 和 rotate 等额外信息。如果寄存器数量不足，CPU 会使用堆栈或临时内存来存储这些变量，导致额外的 寄存器溢出开销（register spill overhead）。
-  // 现代 CPU 通常有 16 个通用寄存器（64 位 x86 架构的 AVX2 指令集）。如果使用了较多的寄存器，编译器可能需要将某些变量存入内存，并在需要时加载回来，从而引入额外的内存访问。
-  for (; len >= 32; len -= 32) {
-    uint64_t val1 = data[0];
-    uint64_t val2 = data[1];
-    uint64_t val3 = data[2];
-    uint64_t val4 = data[3];
-
-    val1 *= multiply; val1 ^= val1 >> rotate; val1 *= multiply;
-    val2 *= multiply; val2 ^= val2 >> rotate; val2 *= multiply;
-    val3 *= multiply; val3 ^= val3 >> rotate; val3 *= multiply;
-    val4 *= multiply; val4 ^= val4 >> rotate; val4 *= multiply;
-
-    ret ^= val1; ret *= multiply;
-    ret ^= val2; ret *= multiply;
-    ret ^= val3; ret *= multiply;
-    ret ^= val4; ret *= multiply;
-
-    data += 4;
+  for (; len >= 8; len -= 8) {
+    uint64_t val = *data;
+    val *= multiply;
+    val ^= val >> rotate;
+    val *= multiply;
+    ret ^= val;
+    ret *= multiply;
+    ++data;
   }
 
   const unsigned char *data2 = (const unsigned char *)data;
