@@ -503,16 +503,19 @@ public:
         return top_candidates;
     }
 
-    void downAdjust(std::vector<std::pair<float, tableint>> &vec, const size_t& n, size_t index) const {
+    void
+    downAdjust(std::vector<std::pair<float, tableint>>& vec, const size_t& n, size_t index) const {
         auto temp = vec[index];
 
         while (true) {
             size_t left = 2 * index + 1;
-            if (left >= n) break;  // 提前退出条件
+            if (left >= n)
+                break;  // 提前退出条件
             size_t right = left + 1;
             size_t largest = (right < n && vec[right].first > vec[left].first) ? right : left;
 
-            if (vec[largest].first <= temp.first) break;
+            if (vec[largest].first <= temp.first)
+                break;
 
             vec[index] = vec[largest];  // 避免 swap
             index = largest;
@@ -521,7 +524,8 @@ public:
         vec[index] = temp;
     }
 
-    void upAdjust(std::vector<std::pair<float, tableint>>& vec, size_t index) const {
+    void
+    upAdjust(std::vector<std::pair<float, tableint>>& vec, size_t index) const {
         auto temp = vec[index];
 
         // 向上调整直到堆顶或者当前节点比父节点大
@@ -529,7 +533,8 @@ public:
             size_t parent = (index - 1) / 2;
 
             // 如果父节点的值大于等于当前节点的值，调整结束
-            if (vec[parent].first >= temp.first) break;
+            if (vec[parent].first >= temp.first)
+                break;
 
             // 将父节点的值下移
             vec[index] = vec[parent];
@@ -559,15 +564,15 @@ public:
     template <bool has_deletions, bool collect_metrics = false>
     std::vector<std::pair<float, tableint>>
     obsearchBaseLayerST(tableint ep_id,
-                      const void* data_point,
-                      size_t ef,
-                      BaseFilterFunctor* isIdAllowed = nullptr) const {
+                        const void* data_point,
+                        size_t ef,
+                        BaseFilterFunctor* isIdAllowed = nullptr) const {
         auto vl = visited_list_pool_->getFreeVisitedList();
         vl_type* visited_array = vl->mass;
         vl_type visited_array_tag = vl->curV;
 
         std::vector<std::pair<float, tableint>> top_candidates;
-        top_candidates.reserve(ef+1);
+        top_candidates.reserve(ef + 1);
         std::priority_queue<std::pair<float, tableint>,
                             vsag::Vector<std::pair<float, tableint>>,
                             CompareByFirst>
@@ -591,7 +596,7 @@ public:
             tableint current_node_id = current_node_pair.second;
             int* data = (int*)get_linklist0(current_node_id);
             size_t size = getListCount((linklistsizeint*)data);
-            
+
             // 预取第一个vector以及visited_array
             auto vector_data_ptr = data_level0_memory_->GetElementPtr((*(data + 1)), offsetData_);
 #ifdef USE_SSE
@@ -621,12 +626,12 @@ public:
                         candidate_set.emplace(-dist, candidate_id);
 
                         // 不懂为啥这里要预取candidate_set里面的vector 讲道理不会再用到它的vector了
-//                         auto vector_data_ptr = data_level0_memory_->GetElementPtr(
-//                             candidate_set.top().second, offsetLevel0_);
-// #ifdef USE_SSE
-//                         _mm_prefetch(vector_data_ptr, _MM_HINT_T0);
-// #endif
-                        if(top_candidates.size() == ef){
+                        //                         auto vector_data_ptr = data_level0_memory_->GetElementPtr(
+                        //                             candidate_set.top().second, offsetLevel0_);
+                        // #ifdef USE_SSE
+                        //                         _mm_prefetch(vector_data_ptr, _MM_HINT_T0);
+                        // #endif
+                        if (top_candidates.size() == ef) {
                             // 置换最前面的,然后调整堆
                             top_candidates[0] = std::make_pair(dist, candidate_id);
                             downAdjust(top_candidates, ef, 0);
@@ -634,7 +639,7 @@ public:
                         } else {
                             top_candidates.emplace_back(dist, candidate_id);
                             upAdjust(top_candidates, top_candidates.size() - 1);
-                            if(lowerBound < dist){
+                            if (lowerBound < dist) {
                                 lowerBound = dist;
                             }
                         }
@@ -651,7 +656,6 @@ public:
         // vsag::logger::debug("ChenNingjie: baselayer times = {0}", times);
         return top_candidates;
     }
-
 
     template <bool has_deletions, bool collect_metrics = false>
     std::priority_queue<std::pair<float, tableint>,
@@ -688,7 +692,7 @@ public:
 
         visited_array[ep_id] = visited_array_tag;
         // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-       while (!candidate_set.empty()) {
+        while (!candidate_set.empty()) {
             std::pair<float, tableint> current_node_pair = candidate_set.top();
 
             if ((-current_node_pair.first) > lowerBound &&
@@ -1802,9 +1806,9 @@ public:
 
     std::vector<labeltype>
     obSearchKnn(const void* query_data,
-              size_t k,
-              uint64_t ef,
-              BaseFilterFunctor* isIdAllowed = nullptr) const {
+                size_t k,
+                uint64_t ef,
+                BaseFilterFunctor* isIdAllowed = nullptr) const {
         // KNN调用栈: 8
         std::vector<labeltype> result;
         if (cur_element_count_ == 0)
@@ -1858,7 +1862,7 @@ public:
         // std::chrono::duration<double, std::milli> duration = finish - start;
         // double time_cost = duration.count();
         // vsag::logger::debug("ChenNingjie: time = {0}, count = {1}", time_cost, count);
-        
+
         // std::priority_queue<std::pair<float, tableint>,
         //                     vsag::Vector<std::pair<float, tableint>>,
         //                     CompareByFirst>
@@ -1884,8 +1888,8 @@ public:
         // }
         // return std::move(result);
         std::vector<std::pair<float, tableint>> top_candidates;
-            top_candidates =
-                obsearchBaseLayerST<false, false>(currObj, query_data, std::max(ef, k), nullptr);
+        top_candidates =
+            obsearchBaseLayerST<false, false>(currObj, query_data, std::max(ef, k), nullptr);
         while (top_candidates.size() > k) {
             top_candidates[0] = top_candidates[top_candidates.size() - 1];
             top_candidates.pop_back();

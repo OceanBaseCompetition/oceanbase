@@ -196,8 +196,8 @@ int create_index(VectorIndexPtr& index_handler, IndexType index_type,
                  const char* metric, int dim,
                  int max_degree, int ef_construction, int ef_search, void* allocator)
 {   
-    // max_degree = 27; // M 硬编码
-    // ef_construction = 300; // ef_construction 硬编码
+    max_degree = 32; // M 硬编码
+    ef_construction = 360; // ef_construction 硬编码
     vsag::logger::debug("TRACE LOG[test_create_index]:");
     vsag::ErrorType error = vsag::ErrorType::UNKNOWN_ERROR;
     int ret = 0;
