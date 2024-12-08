@@ -572,26 +572,22 @@ public:
                             vsag::Vector<std::pair<float, tableint>>,
                             CompareByFirst>
             candidate_set(allocator_);
-        // bool sorted = false;
 
-        float lowerBound;
-        if ((!has_deletions || !isMarkedDeleted(ep_id)) &&
-            ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(ep_id)))) {
-            float dist = fstdistfunc_(data_point, getDataByInternalId(ep_id), dist_func_param_);
-            lowerBound = dist;
-            top_candidates.emplace_back(dist, ep_id);
-            candidate_set.emplace(-dist, ep_id);
-        } else {
-            lowerBound = std::numeric_limits<float>::max();
-            candidate_set.emplace(-lowerBound, ep_id);
-        }
+        float dist = fstdistfunc_(data_point, getDataByInternalId(ep_id), dist_func_param_);
+        float lowerBound = dist;
+        top_candidates.emplace_back(dist, ep_id);
+        candidate_set.emplace(-dist, ep_id);
 
         visited_array[ep_id] = visited_array_tag;
         // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+        int times = 0;
         while (!candidate_set.empty()) {
+            ++times;
+            if(times > 5700){
+                break;
+            }
             std::pair<float, tableint> current_node_pair = candidate_set.top();
-            if ((-current_node_pair.first) > lowerBound &&
-                (top_candidates.size() == ef || (!isIdAllowed && !has_deletions))) {
+            if ((-current_node_pair.first) > lowerBound) {
                 break;
             }
             candidate_set.pop();
@@ -599,12 +595,8 @@ public:
             tableint current_node_id = current_node_pair.second;
             int* data = (int*)get_linklist0(current_node_id);
             size_t size = getListCount((linklistsizeint*)data);
-            //                bool cur_node_deleted = isMarkedDeleted(current_node_id);
-            if (collect_metrics) {
-                metric_hops_++;
-                metric_distance_computations_ += size;
-            }
-
+            
+            // 预取第一个vector以及visited_array
             auto vector_data_ptr = data_level0_memory_->GetElementPtr((*(data + 1)), offsetData_);
 #ifdef USE_SSE
             _mm_prefetch((char*)(visited_array + *(data + 1)), _MM_HINT_T0);
@@ -616,6 +608,8 @@ public:
             for (size_t j = 1; j <= size; j++) {
                 int candidate_id = *(data + j);
                 size_t pre_l = std::min(j, size - 2);
+
+                // 预取下一个
                 auto vector_data_ptr =
                     data_level0_memory_->GetElementPtr((*(data + pre_l + 1)), offsetData_);
 #ifdef USE_SSE
@@ -629,30 +623,23 @@ public:
                     float dist = fstdistfunc_(data_point, currObj1, dist_func_param_);
                     if (top_candidates.size() < ef || lowerBound > dist) {
                         candidate_set.emplace(-dist, candidate_id);
-                        auto vector_data_ptr = data_level0_memory_->GetElementPtr(
-                            candidate_set.top().second, offsetLevel0_);
-#ifdef USE_SSE
-                        _mm_prefetch(vector_data_ptr, _MM_HINT_T0);
-#endif
 
-                        if ((!has_deletions || !isMarkedDeleted(candidate_id)) &&
-                            ((!isIdAllowed) || (*isIdAllowed)(getExternalLabel(candidate_id)))){
-                            if(top_candidates.size() == ef){
-                                // if(!sorted){
-                                //     // 第一次满才需要排序 没满之前无脑往里面装就行 满了开始建堆
-                                //     createHeap(top_candidates, ef);
-                                //     sorted = true;
-                                // }
-                                // 置换最前面的,然后调整排序
-                                top_candidates[0] = std::make_pair(dist, candidate_id);
-                                downAdjust(top_candidates, ef, 0);
-                                lowerBound = top_candidates[0].first;
-                            } else {
-                                top_candidates.emplace_back(dist, candidate_id);
-                                upAdjust(top_candidates, top_candidates.size() - 1);
-                                if(lowerBound < dist){
-                                    lowerBound = dist;
-                                }
+                        // 不懂为啥这里要预取candidate_set里面的vector 讲道理不会再用到它的vector了
+//                         auto vector_data_ptr = data_level0_memory_->GetElementPtr(
+//                             candidate_set.top().second, offsetLevel0_);
+// #ifdef USE_SSE
+//                         _mm_prefetch(vector_data_ptr, _MM_HINT_T0);
+// #endif
+                        if(top_candidates.size() == ef){
+                            // 置换最前面的,然后调整堆
+                            top_candidates[0] = std::make_pair(dist, candidate_id);
+                            downAdjust(top_candidates, ef, 0);
+                            lowerBound = top_candidates[0].first;
+                        } else {
+                            top_candidates.emplace_back(dist, candidate_id);
+                            upAdjust(top_candidates, top_candidates.size() - 1);
+                            if(lowerBound < dist){
+                                lowerBound = dist;
                             }
                         }
                     }
@@ -660,13 +647,12 @@ public:
             }
         }
 
-        // 此时的堆 不保证vector内是有序的
-        // heapSort(top_candidates, ef);
         visited_list_pool_->releaseVisitedList(vl);
         // auto finish = std::chrono::steady_clock::now();
         // std::chrono::duration<double, std::milli> duration = finish - start;
         // double time_cost = duration.count();
         // vsag::logger::debug("ChenNingjie: baselayer time = {0}", time_cost);
+        // vsag::logger::debug("ChenNingjie: baselayer times = {0}", times);
         return top_candidates;
     }
 
