@@ -116,9 +116,8 @@ int ObVectorIndexLookupOp::init(const ObDASBaseCtDef *table_lookup_ctdef,
       }else{
         // 在这里提前用一个线程去为set_vector_query_condition做准备
         vec_datum_ = nullptr;
-        vec_ready_.store(false, std::memory_order_release);
         // -- 单例工作线程
-        ParseWoker::getInstance()->submitTask([&](){
+        ParseWoker::getInstance()->submitTask([this](){
           // std::lock_guard<std::mutex> lock(mtx_);
           search_vec_->eval(*(sort_rtdef_->eval_ctx_), vec_datum_);
           vec_ready_.store(true, std::memory_order_release);
@@ -1329,7 +1328,7 @@ int ObVectorIndexLookupOp::set_vector_query_condition(ObVectorQueryConditions &q
     //   std::unique_lock<std::mutex> lock(mtx_);
     //   cv_.wait(lock, [this]() { return vec_datum_ != nullptr; });
     // }
-    while (!vec_ready_.load(std::memory_order_acquire)) {
+    while (!vec_ready_.exchange(false, std::memory_order_acquire)) {
         // std::this_thread::yield(); // 让出 CPU 给其他线程执行
     }
     // vec_datum_ = future_.get();
