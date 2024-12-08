@@ -229,10 +229,11 @@ int ObDomainIndexLookupOp::get_next_rows(int64_t &count, int64_t capacity)
         // 从结果集中提取
         if (OB_FAIL(get_next_rows_from_data_table(count, capacity))) {
           if (OB_ITER_END == ret) {
-            // ret = OB_SUCCESS;
+            ret = OB_SUCCESS; // 全被过滤的情况 在这一层进行下一轮
             if (count > 0) {
               lookup_row_cnt_ += count;
               got_next_row = true;
+              ret = OB_ITER_END; // 这一轮已经结束 先把数据报上去
             } else if (OB_FAIL(check_lookup_row_cnt())) {
               LOG_WARN("failed to check table lookup", K(ret));
             } else if (OB_FAIL(next_state())) { 
