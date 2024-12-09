@@ -10,7 +10,7 @@
  * See the Mulan PubL v2 for more details.
  */
 #define USING_LOG_PREFIX SQL_ENG
-
+#include "lib/json_type/simdjson.h"
 #include "ob_array_cast.h"
 #include "lib/json_type/ob_json_tree.h"
 #include "lib/json_type/ob_json_parse.h"
@@ -416,26 +416,22 @@ int ObArrayCastUtils::add_json_node_to_array(common::ObIAllocator &alloc, ObJson
   return ret;
 }
 
-int ObArrayCastUtils::string_cast(common::ObIAllocator &alloc, ObString &arr_text,
+int ObArrayCastUtils::string_cast(common::ObIAllocator &alloc1, ObString &arr_text,
                                   ObIArrayType *&dst, const ObCollectionTypeBase *dst_elem_type)
 {
   int ret = OB_SUCCESS;
   const char *syntaxerr = NULL;
   uint64_t err_offset = 0;
   ObJsonNode *j_node = NULL;
-  if (OB_FAIL(
-          ObJsonParser::parse_json_text(&alloc, arr_text.ptr(), arr_text.length(), syntaxerr, &err_offset, j_node))) {
-    LOG_WARN("failed to parse array text", K(ret), K(arr_text), KCSTRING(syntaxerr), K(err_offset));
-  } else if (j_node->json_type() != ObJsonNodeType::J_ARRAY) {
-    ret = OB_INVALID_ARGUMENT;
-    LOG_WARN("invalid text. not json type", K(ret), K(arr_text), K(j_node->json_type()));
-  } else {
-    for (int i = 0; i < j_node->element_count() && OB_SUCC(ret); i++) {
-      ObJsonArray *json_arr = static_cast<ObJsonArray *>(j_node);
-      if (OB_FAIL(add_json_node_to_array(alloc, *(*json_arr)[i], dst_elem_type, dst))) {
-        LOG_WARN("failed to add json node to array", K(ret), K(i));
-      }
-    }
+
+  simdjson::dom::parser parser;
+  auto result = parser.parse(std::string(arr_text.ptr()));
+  simdjson::dom::array arr = result.value();
+  for (auto val : arr) {  
+      double d_val = val.get<double>();
+      void *buf = alloc1.alloc(sizeof(ObJsonDouble));
+      ObJsonDouble *node = new (buf) ObJsonDouble(d_val);
+      add_json_node_to_array(alloc1, *node, dst_elem_type, dst);
   }
 
   return ret;
