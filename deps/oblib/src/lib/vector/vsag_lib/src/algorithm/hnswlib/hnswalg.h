@@ -1834,15 +1834,20 @@ public:
                 // metric_distance_computations_ += size;
 
                 tableint* datal = (tableint*)(data + 1);
+                auto vector_data_ptr = getDataByInternalId(*datal);
 #ifdef USE_SSE
-                _mm_prefetch(datal, _MM_HINT_T0);
+                _mm_prefetch(vector_data_ptr, _MM_HINT_T0);
 #endif
                 // vsag::logger::debug("ChenNingjie: maxlevel_的size:{0}", size);
                 for (int i = 0; i < size; i++) {
                     tableint cand = datal[i];
                     if (cand < 0 || cand > max_elements_)
                         throw std::runtime_error("cand error");
-                    float d = fstdistfunc_(query_data, getDataByInternalId(cand), dist_func_param_);
+#ifdef USE_SSE
+                _mm_prefetch(getDataByInternalId(datal[std::min(i + 1, size - 1)]), _MM_HINT_T0);
+#endif
+                    vector_data_ptr = getDataByInternalId(cand);
+                    float d = fstdistfunc_(query_data, vector_data_ptr, dist_func_param_);
                     // ++count;
                     if (d < curdist) {
                         curdist = d;
