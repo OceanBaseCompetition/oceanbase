@@ -15,7 +15,7 @@
 // limitations under the License.
 
 #include <x86intrin.h>
-
+#include <vector>
 #include <iostream>
 
 namespace vsag {
@@ -86,3 +86,42 @@ InnerProductSIMD16ExtAVX512(const void* pVect1v, const void* pVect2v, const void
 }
 
 }  // namespace vsag
+
+// 通过vid和id的关系 直接将vid转成id
+void VidToIDAVX512(const void* vec, int64_t value_to_subtract, const size_t& n) {
+    size_t * result = (size_t*)vec; 
+    size_t i = 0;
+
+    // 使用 AVX512 处理 64 位整数（每次处理 8 个元素）
+    __m512i sub_value = _mm512_set1_epi64(value_to_subtract);
+
+    for (; i <= n - 8; i += 8) {
+        // 加载 8 个 64 位整数到 AVX512 寄存器中
+        __m512i data = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(&result[i]));
+
+        // 每个元素减去常数值
+        __m512i result_data = _mm512_sub_epi64(data, sub_value);
+
+        // 存储结果回到内存
+        _mm512_storeu_si512(reinterpret_cast<__m512i*>(&result[i]), result_data);
+    }
+
+    // 处理剩余的元素
+    for (; i < n; ++i) {
+        result[i] -= value_to_subtract;
+    }
+}
+
+
+// std::vector<int8_t> floatToint8SIMD(const float* input, const size_t& size) {
+//     // size_t size = input.size();
+//     std::vector<int8_t> output(size);
+
+//     for (size_t i = 0; i < size; i += 16) { // 每次处理16个元素
+//         __m512 values = _mm512_loadu_ps(&input[i]);            // 加载16个float
+//         __m512i integers = _mm512_cvtps_epi32(values);         // 转为int32
+//         __m128i packed = _mm512_cvtusepi32_epi8(integers);     // 压缩到uint8_t
+//         _mm_storeu_si128((__m128i*)&output[i], packed);        // 存储结果
+//     }
+//     return output;
+// }
