@@ -16,7 +16,7 @@
 #pragma once
 
 #include <stdlib.h>
-
+#include <vector>
 #include <string>
 
 namespace vsag {
@@ -163,3 +163,7 @@ PQDistanceFunc
 GetPQDistanceFunc();
 
 }  // namespace vsag
+
+void VidToIDAVX512(const void* vec, int64_t value_to_subtract, const size_t& n);
+
+std::vector<int8_t> floatToint8SIMD(const float* input, const size_t& size);

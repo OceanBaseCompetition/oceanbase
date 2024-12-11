@@ -121,7 +121,8 @@ HNSW::build(const DatasetPtr& base) {
         }
 
         auto ids = base->GetIds();
-        auto vectors = base->GetFloat32Vectors();
+        // auto vectors = base->GetFloat32Vectors();
+        auto vectors = base->GetInt8Vectors();
         std::vector<int64_t> failed_ids;
         {
             SlowTaskTimer t("hnsw graph");
@@ -162,7 +163,8 @@ HNSW::add(const DatasetPtr& base) {
 
         int64_t num_elements = base->GetNumElements();
         auto ids = base->GetIds();
-        auto vectors = base->GetFloat32Vectors();
+        // auto vectors = base->GetFloat32Vectors();
+        auto vectors = base->GetInt8Vectors();
         std::vector<int64_t> failed_ids;
 
         std::unique_lock lock(rw_mutex_);
@@ -216,7 +218,8 @@ HNSW::knn_search(const DatasetPtr& query,
 
         // check query vector
         CHECK_ARGUMENT(query->GetNumElements() == 1, "query dataset should contain 1 vector only");
-        auto vector = query->GetFloat32Vectors();
+        // auto vector = query->GetFloat32Vectors();
+        auto vector = query->GetInt8Vectors();
         int64_t query_dim = query->GetDim();
         CHECK_ARGUMENT(
             query_dim == dim_,

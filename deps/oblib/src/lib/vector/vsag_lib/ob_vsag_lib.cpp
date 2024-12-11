@@ -13,7 +13,7 @@
 
 #include "default_logger.h"
 #include "vsag/logger.h"
-
+#include "src/simd/simd.h"
 #include <fstream>
 #include <chrono>
 
@@ -266,12 +266,14 @@ int build_index(VectorIndexPtr& index_handler,float* vector_list, int64_t* ids, 
         return static_cast<int>(error);
     }
     SlowTaskTimer t("build_index");
+    std::vector<int8_t> vector_data = floatToint8SIMD(vector_list, dim);
     HnswIndexHandler* hnsw = static_cast<HnswIndexHandler*>(index_handler);
     auto dataset = vsag::Dataset::Make();
     dataset->Dim(dim)
     ->NumElements(size)
     ->Ids(ids)
-    ->Float32Vectors(vector_list)
+    // ->Float32Vectors(vector_list)
+    ->Int8Vectors(vector_data.data())
     ->Owner(false);
     ret = hnsw->build_index(dataset);
     if (ret != 0) {
@@ -292,12 +294,14 @@ int add_index(VectorIndexPtr& index_handler,float* vector, int64_t* ids, int dim
     }
     HnswIndexHandler* hnsw = static_cast<HnswIndexHandler*>(index_handler);
     SlowTaskTimer t("add_index");
+    std::vector<int8_t> vector_data = floatToint8SIMD(vector, dim);
     // add index
     auto incremental = vsag::Dataset::Make();
         incremental->Dim(dim)
             ->NumElements(size)
             ->Ids(ids)
-            ->Float32Vectors(vector)
+            // ->Float32Vectors(vector)
+            ->Int8Vectors(vector_data.data())
             ->Owner(false);
     ret = hnsw->add_index(incremental);
     if (ret != 0) {
@@ -338,7 +342,11 @@ int knn_search(VectorIndexPtr& index_handler,float* query_vector,int dim, int64_
     std::string search_parameters = std::to_string(ef_search);
     HnswIndexHandler* hnsw = static_cast<HnswIndexHandler*>(index_handler);
     auto query = vsag::Dataset::Make();
-    query->NumElements(1)->Dim(dim)->Float32Vectors(query_vector)->Owner(false);
+    std::vector<int8_t> vector_data = floatToint8SIMD(query_vector, dim);
+    query->NumElements(1)->Dim(dim)
+    // ->Float32Vectors(query_vector)
+    ->Int8Vectors(vector_data.data())
+    ->Owner(false);
     // KNN调用栈: 3
     // ret = hnsw->knn_search(query, topk, search_parameters.dump(), dist, ids, result_size, filter);
     ret = hnsw->knn_search(query, topk, search_parameters, dist, ids, result_size, filter);

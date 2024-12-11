@@ -540,21 +540,21 @@ public:
         vec[index] = temp;
     }
 
-    // 建堆
-    void createHeap(std::vector<std::pair<float, tableint>> &vec, const size_t& n) const {
-        for(int i = n / 2 - 1; i >= 0; --i){
-            downAdjust(vec, n, i);
-        }
-    }
+    // // 建堆
+    // void createHeap(std::vector<std::pair<float, tableint>> &vec, const size_t& n) const {
+    //     for(int i = n / 2 - 1; i >= 0; --i){
+    //         downAdjust(vec, n, i);
+    //     }
+    // }
 
-    void heapSort(std::vector<std::pair<float, tableint>> &vec, const size_t& n) const {
-        for(int i = n - 1; i > 0; --i){
-            auto temp = vec[i];
-            vec[i] = vec[0];
-            vec[0] = temp;
-            downAdjust(vec, i, 0);
-        }
-    }
+    // void heapSort(std::vector<std::pair<float, tableint>> &vec, const size_t& n) const {
+    //     for(int i = n - 1; i > 0; --i){
+    //         auto temp = vec[i];
+    //         vec[i] = vec[0];
+    //         vec[0] = temp;
+    //         downAdjust(vec, i, 0);
+    //     }
+    // }
 
     template <bool has_deletions, bool collect_metrics = false>
     std::vector<std::pair<float, tableint>>
@@ -1901,6 +1901,7 @@ public:
             top_candidates.pop_back();
             downAdjust(top_candidates, top_candidates.size(), 0);
         }
+        VidToIDAVX512(result.data(), 2010001, result.size());
         return result;
     }
     std::priority_queue<std::pair<float, labeltype>>

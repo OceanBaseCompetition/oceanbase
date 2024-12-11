@@ -52,7 +52,8 @@ SimpleFlat::Build(const DatasetPtr& base) {
             std::memcpy(this->ids_.data() + actual_add_size, base->GetIds() + i, sizeof(int64_t));
 
             std::memcpy(this->data_.data() + actual_add_size * this->dim_,
-                        base->GetFloat32Vectors() + i * this->dim_,
+                        // base->GetFloat32Vectors() + i * this->dim_,
+                        base->GetInt8Vectors() + i * this->dim_,
                         this->dim_ * sizeof(float));
             actual_add_size++;
         } else {
@@ -90,7 +91,8 @@ SimpleFlat::Add(const DatasetPtr& base) {
             std::memcpy(this->ids_.data() + cur_size, base->GetIds() + i, sizeof(int64_t));
 
             std::memcpy(this->data_.data() + cur_size * this->dim_,
-                        base->GetFloat32Vectors() + i * this->dim_,
+                        // base->GetFloat32Vectors() + i * this->dim_,
+                        base->GetInt8Vectors() + i * this->dim_,
                         this->dim_ * sizeof(float));
             actual_add_size++;
         } else {
