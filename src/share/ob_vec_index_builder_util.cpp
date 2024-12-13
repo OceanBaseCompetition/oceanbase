@@ -636,7 +636,7 @@ int ObVecIndexBuilderUtil::set_vec_index_snapshot_data_table_columns(
   if (!data_schema.is_valid() ||
       (!share::schema::is_vec_index_snapshot_data_type(arg.index_type_)) ||
       arg.index_columns_.count() != 1 ||  /* key column */
-      arg.store_columns_.count() != 3) {  /* data , vid, vector column */
+      arg.store_columns_.count() != 5) {  /* id, c1, data , vid, vector column */
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", K(ret), K(data_schema), K(arg.index_type_),
         K(arg.index_columns_.count()), K(arg.store_columns_.count()),
@@ -977,6 +977,53 @@ int ObVecIndexBuilderUtil::adjust_vec_arg(
           LOG_WARN("failed to inner_adjust_vec_arg", K(ret));
         }
       } else if (is_vec_index_snapshot_data) {
+        // 把rowkey和c1也放到index_arg中，到时候用这些值替换vid
+        // 1. add rowkey column to arg->index_columns
+        const ObRowkeyInfo &rowkey_info = data_schema.get_rowkey_info();
+        LOG_INFO("ChenNingjie ", K(rowkey_info.get_size()));
+        LOG_INFO("ChenNingjie ", K(rowkey_info));
+        uint64_t c1_column_id = OB_INVALID_ID;
+        for (int64_t i = 0; OB_SUCC(ret) && i < rowkey_info.get_size(); ++i) {
+          // ObColumnSortItem rowkey_column;
+          const ObColumnSchemaV2 *rowkey_col = NULL;
+          uint64_t column_id = OB_INVALID_ID;
+          if (OB_FAIL(rowkey_info.get_column_id(i, column_id))) {
+            LOG_WARN("get_column_id failed", "index", i, K(ret));
+          } else if (NULL == (rowkey_col = data_schema.get_column_schema(column_id))) {
+            // ret = OB_ERR_BAD_FIELD_ERROR;
+            LOG_WARN("get_column_schema failed", "table_id",
+                data_schema.get_table_id(), K(column_id), K(ret));
+          }
+          //  else if (OB_FAIL(ob_write_string(allocator,
+          //                                    rowkey_col->get_column_name_str(),
+          //                                    rowkey_column.column_name_))) {
+          //   //to keep the memory lifetime of column_name consistent with index_arg
+          //   LOG_WARN("deep copy column name failed", K(ret));
+          // }
+           else if (OB_FAIL(index_arg->store_columns_.push_back(rowkey_col->get_column_name_str()))) {
+            LOG_WARN("failed to push back rowkey column", K(ret));
+          }
+          c1_column_id = column_id + 1;
+        }
+        // 把c1也加入
+        {
+          ObColumnSortItem c1_column;
+          const ObColumnSchemaV2 *c1_col = NULL;
+          if (NULL == (c1_col = data_schema.get_column_schema(c1_column_id))) {
+            // 没有就没有
+            LOG_WARN("get_column_schema failed", "table_id",
+                data_schema.get_table_id(), K(c1_column_id), K(ret));
+          }
+          //  else if (OB_FAIL(ob_write_string(allocator,
+          //                                    c1_col->get_column_name_str(),
+          //                                    c1_column.column_name_))) {
+          //   //to keep the memory lifetime of column_name consistent with index_arg
+          //   LOG_WARN("deep copy column name failed", K(ret));
+          // }
+           else if (OB_FAIL(index_arg->store_columns_.push_back(c1_col->get_column_name_str()))) {
+            LOG_WARN("failed to push back c1 column", K(ret));
+          }
+        }
         if (OB_FAIL(ret)) {
         } else if (OB_FAIL(inner_adjust_vec_arg(index_arg,
                                                 vec_cols,

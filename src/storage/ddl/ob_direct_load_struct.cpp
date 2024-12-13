@@ -2194,7 +2194,7 @@ int ObVectorIndexSliceStore::append_row(const blocksstable::ObDatumRow &datum_ro
       if (datum_row.get_column_count() <= vector_vid_col_idx_ || datum_row.get_column_count() <= vector_col_idx_) {
         ret = OB_ERR_UNEXPECTED;
         LOG_WARN("failed to get valid vector index col idx", K(ret), K(vector_col_idx_), K(vector_vid_col_idx_), K(datum_row));
-      } else if (FALSE_IT(vec_vid = datum_row.storage_datums_[vector_vid_col_idx_].get_int())) {
+      } else if (FALSE_IT(vec_vid = datum_row.storage_datums_[vector_vid_col_idx_-2].get_int() << 32 | datum_row.storage_datums_[vector_vid_col_idx_-1].get_int())) {
       } else if (FALSE_IT(vec_str = datum_row.storage_datums_[vector_col_idx_].get_string())) {
       } else if (OB_FAIL(ObTextStringHelper::read_real_string_data(&tmp_allocator_,
                                                                     ObLongTextType,
