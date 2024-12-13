@@ -91,23 +91,18 @@ int ObVectorQueryVidIterator::get_next_rows_directly(sql::ExprFixedArray& exprs,
   } else if (cur_pos_ < total_) {
     int64_t index = 0;
     for (; index < batch_size_ && cur_pos_ < total_; ++index) {
-      for (int64_t i = 0; i < exprs.count(); ++i) {
-        sql::ObExpr *e = exprs.at(i);
+      // for (int64_t i = 0; i < exprs.count(); ++i) {
+        sql::ObExpr *e = exprs.at(0);
         ObDatum &datum = e->locate_expr_datum(*eval_ctx, index);
-        if(!i){
+        // if(!i){
           // id
-          datum.set_int(vids_[cur_pos_] >> 32); // 直接用 vid 和 id 的关系
-        } else if (!ob_is_int_tc(e->datum_meta_.type_)){
-          // 投影信息？？？不太懂第三个表达式怎么填充 有过滤条件的先不走这种不回主表的方式
-          // LOG_INFO("ChenNingjie", K(e->get_eval_info(*eval_ctx)));
-          // e->get_eval_info(*eval_ctx).projected_ = true;
-        }
-        else {
-          // c1
-          datum.set_int(vids_[cur_pos_] & 0xFFFFFFFF); // 直接用 vid 和 c1 的关系
-        }
-      }
-      ++cur_pos_;
+          datum.set_int(vids_[cur_pos_++] >> 32); // 直接用 vid 和 id 的关系
+        // else {
+        //   // c1
+        //   datum.set_int(vids_[cur_pos_] & 0xFFFFFFFF); // 直接用 vid 和 c1 的关系
+        // }
+      // }
+      // ++cur_pos_;
     }
     size = index;
     if(cur_pos_ == total_){

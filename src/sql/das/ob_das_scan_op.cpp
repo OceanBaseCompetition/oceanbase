@@ -1793,10 +1793,8 @@ int ObLocalIndexLookupOp::get_next_rows_from_data_table(int64_t &count, int64_t 
       }
     }
   } else {
-    ObNewRow *row = nullptr;
     auto adaptor_vid_iter = static_cast<ObVectorQueryVidIterator*>(lookup_iter_);
-    // ret = adaptor_vid_iter->get_next_rows(row, count);
-    auto exprs = lookup_rtdef_->p_pd_expr_op_->expr_spec_.access_exprs_;
+    auto exprs = lookup_ctdef_->result_output_;
     ret = adaptor_vid_iter->get_next_rows_directly(exprs, count, lookup_rtdef_->eval_ctx_);
     lookup_rowkey_cnt_ += count;
     if(ret == OB_ITER_END){
