@@ -57,6 +57,10 @@ public:
   int get_next_rows_directly (sql::ExprFixedArray& exprs, int64_t &size, sql::ObEvalCtx* eval_ctx);
   virtual int get_next_row() override { return OB_NOT_IMPLEMENT; }
   virtual void reset() override;
+  void set_filter_value(const int64_t& c1) {
+    filter_value_ = c1;
+    need_filter_ = true;
+    }
 
 private:
   bool is_init_;
@@ -67,6 +71,8 @@ private:
   ObNewRow *row_;
   ObObj *obj_;
   ObIAllocator *allocator_;
+  int64_t filter_value_; // 要过滤的c1的值
+  bool need_filter_ = false;
 };
 
 struct ObVsagQueryResult

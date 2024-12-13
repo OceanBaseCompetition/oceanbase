@@ -94,9 +94,20 @@ int ObVectorQueryVidIterator::get_next_rows_directly(sql::ExprFixedArray& exprs,
       for (int64_t i = 0; i < exprs.count(); ++i) {
         sql::ObExpr *e = exprs.at(i);
         ObDatum &datum = e->locate_expr_datum(*eval_ctx, index);
-        // datum.set_int(vids_[cur_pos_++] - 2010001); // 直接用 vid 和 id 的关系
-        datum.set_int(vids_[cur_pos_++]); // 直接用 vid 和 id 的关系
+        if(!i){
+          // id
+          datum.set_int(vids_[cur_pos_] >> 32); // 直接用 vid 和 id 的关系
+        } else if (!ob_is_int_tc(e->datum_meta_.type_)){
+          // 投影信息？？？不太懂第三个表达式怎么填充 有过滤条件的先不走这种不回主表的方式
+          // LOG_INFO("ChenNingjie", K(e->get_eval_info(*eval_ctx)));
+          // e->get_eval_info(*eval_ctx).projected_ = true;
+        }
+        else {
+          // c1
+          datum.set_int(vids_[cur_pos_] & 0xFFFFFFFF); // 直接用 vid 和 c1 的关系
+        }
       }
+      ++cur_pos_;
     }
     size = index;
     if(cur_pos_ == total_){
@@ -128,8 +139,13 @@ int ObVectorQueryVidIterator::get_next_rows(ObNewRow *&row, int64_t &size)
       } else {
         int64_t index = 0;
         for (; index < batch_size_ && cur_pos_ < total_; ++index) {
-          // obj[index].set_int(vids_[cur_pos_++] - 2010001); // 直接用 vid 和 id 的关系
-          obj[index].set_int(vids_[cur_pos_++]); // 直接用 vid 和 id 的关系
+          if(need_filter_ && filter_value_ != (vids_[cur_pos_] & 0xFFFFFFFF)){
+            // 过滤掉
+            ++cur_pos_;
+            --index;
+            continue;
+          }
+          obj[index].set_int(vids_[cur_pos_++] >> 32); // 直接用 vid 和 id 的关系
         }
         row->cells_ = obj;
         row->count_ = index;

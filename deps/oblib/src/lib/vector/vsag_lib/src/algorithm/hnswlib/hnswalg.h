@@ -1901,7 +1901,7 @@ public:
             top_candidates.pop_back();
             downAdjust(top_candidates, top_candidates.size(), 0);
         }
-        VidToIDAVX512(result.data(), 2010001, result.size());
+        // VidToIDAVX512(result.data(), 2010001, result.size());
         return result;
     }
     std::priority_queue<std::pair<float, labeltype>>

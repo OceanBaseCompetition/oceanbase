@@ -437,6 +437,12 @@ int ObVectorIndexLookupOp::fetch_index_table_rowkeys(int64_t &count, const int64
     if (OB_FAIL(process_adaptor_state())) {
       LOG_WARN("failed to process_adaptor_state", K(ret));
     }
+    if(!(lookup_ctdef_->pd_expr_spec_.pushdown_filters_.empty())){
+      // 获取c1的值，并设置给vid的迭代器
+      ObDatum * c1 = nullptr;
+      lookup_ctdef_->pd_expr_spec_.pushdown_filters_.at(0)->args_[1]->eval(*(lookup_rtdef_->eval_ctx_), c1);
+      adaptor_vid_iter_->set_filter_value(c1->get_int());
+    }
   }
   if (OB_UNLIKELY(lookup_rtdef_->scan_flag_.index_back_)){
     if (OB_FAIL(ret)) {
