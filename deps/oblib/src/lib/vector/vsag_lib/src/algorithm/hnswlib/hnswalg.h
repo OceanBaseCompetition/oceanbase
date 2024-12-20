@@ -581,11 +581,7 @@ public:
         visited_array[ep_id] = visited_array_tag;
         // std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
         int times = 0;
-        while (!candidate_set.empty()) {
-            ++times;
-            if(times > 5700){
-                break;
-            }
+        while (++times < 5600 && !candidate_set.empty()) {
             std::pair<float, tableint> current_node_pair = candidate_set.top();
             if ((-current_node_pair.first) > lowerBound) {
                 break;
@@ -601,7 +597,7 @@ public:
 #ifdef USE_SSE
             _mm_prefetch((char*)(visited_array + *(data + 1)), _MM_HINT_T0);
             _mm_prefetch((char*)(visited_array + *(data + 1) + 64), _MM_HINT_T0);
-            _mm_prefetch(vector_data_ptr, _MM_HINT_T0);
+            _mm_prefetch(vector_data_ptr, _MM_HINT_NTA);
             _mm_prefetch((char*)(data + 2), _MM_HINT_T0);
 #endif
 
@@ -614,7 +610,7 @@ public:
                     data_level0_memory_->GetElementPtr((*(data + pre_l + 1)), offsetData_);
 #ifdef USE_SSE
                 _mm_prefetch((char*)(visited_array + *(data + pre_l + 1)), _MM_HINT_T0);
-                _mm_prefetch(vector_data_ptr, _MM_HINT_T0);  ////////////
+                _mm_prefetch(vector_data_ptr, _MM_HINT_NTA);  ////////////
 #endif
                 if (!(visited_array[candidate_id] == visited_array_tag)) {
                     visited_array[candidate_id] = visited_array_tag;
@@ -1836,7 +1832,7 @@ public:
                 tableint* datal = (tableint*)(data + 1);
                 auto vector_data_ptr = getDataByInternalId(*datal);
 #ifdef USE_SSE
-                _mm_prefetch(vector_data_ptr, _MM_HINT_T0);
+                _mm_prefetch(vector_data_ptr, _MM_HINT_NTA);
 #endif
                 // vsag::logger::debug("ChenNingjie: maxlevel_的size:{0}", size);
                 for (int i = 0; i < size; i++) {
@@ -1844,7 +1840,7 @@ public:
                     if (cand < 0 || cand > max_elements_)
                         throw std::runtime_error("cand error");
 #ifdef USE_SSE
-                _mm_prefetch(getDataByInternalId(datal[std::min(i + 1, size - 1)]), _MM_HINT_T0);
+                _mm_prefetch(getDataByInternalId(datal[std::min(i + 1, size - 1)]), _MM_HINT_NTA);
 #endif
                     vector_data_ptr = getDataByInternalId(cand);
                     float d = fstdistfunc_(query_data, vector_data_ptr, dist_func_param_);
@@ -1895,11 +1891,14 @@ public:
             top_candidates.pop_back();
             downAdjust(top_candidates, top_candidates.size(), 0);
         }
-        while (top_candidates.size() > 0){
-            result.emplace_back(getExternalLabel(top_candidates[0].second));
-            top_candidates[0] = top_candidates[top_candidates.size() - 1];
-            top_candidates.pop_back();
-            downAdjust(top_candidates, top_candidates.size(), 0);
+        // while (top_candidates.size() > 0){
+        //     result.emplace_back(getExternalLabel(top_candidates[0].second));
+        //     top_candidates[0] = top_candidates[top_candidates.size() - 1];
+        //     top_candidates.pop_back();
+        //     downAdjust(top_candidates, top_candidates.size(), 0);
+        // }
+        for (auto&& pair : top_candidates) {
+            result.push_back(getExternalLabel(std::move(pair.second)));
         }
         // VidToIDAVX512(result.data(), 2010001, result.size());
         return result;
