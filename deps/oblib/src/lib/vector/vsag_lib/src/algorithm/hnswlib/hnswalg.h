@@ -602,7 +602,7 @@ public:
 #ifdef USE_SSE
             _mm_prefetch((char*)(visited_array + *(data + 1)), _MM_HINT_T0);
             _mm_prefetch((char*)(visited_array + *(data + 1) + 64), _MM_HINT_T0);
-            _mm_prefetch(vector_data_ptr, _MM_HINT_NTA);
+            _mm_prefetch(vector_data_ptr, _MM_HINT_T0);
             _mm_prefetch((char*)(data + 2), _MM_HINT_T0);
 #endif
 
@@ -615,7 +615,7 @@ public:
                     data_level0_memory_->GetElementPtr((*(data + pre_l + 1)), offsetData_);
 #ifdef USE_SSE
                 _mm_prefetch((char*)(visited_array + *(data + pre_l + 1)), _MM_HINT_T0);
-                _mm_prefetch(vector_data_ptr, _MM_HINT_NTA);  ////////////
+                _mm_prefetch(vector_data_ptr, _MM_HINT_T0);  ////////////
 #endif
                 if (!(visited_array[candidate_id] == visited_array_tag)) {
                     visited_array[candidate_id] = visited_array_tag;
@@ -1836,7 +1836,7 @@ public:
                 tableint* datal = (tableint*)(data + 1);
                 auto vector_data_ptr = getDataByInternalId(*datal);
 #ifdef USE_SSE
-                _mm_prefetch(vector_data_ptr, _MM_HINT_NTA);
+                _mm_prefetch(vector_data_ptr, _MM_HINT_T0);
 #endif
                 // vsag::logger::debug("ChenNingjie: maxlevel_的size:{0}", size);
                 for (int i = 0; i < size; i++) {
@@ -1844,7 +1844,7 @@ public:
                     if (cand < 0 || cand > max_elements_)
                         throw std::runtime_error("cand error");
 #ifdef USE_SSE
-                _mm_prefetch(getDataByInternalId(datal[std::min(i + 1, size - 1)]), _MM_HINT_NTA);
+                _mm_prefetch(getDataByInternalId(datal[std::min(i + 1, size - 1)]), _MM_HINT_T0);
 #endif
                     vector_data_ptr = getDataByInternalId(cand);
                     float d = fstdistfunc_(query_data, vector_data_ptr, dist_func_param_);
