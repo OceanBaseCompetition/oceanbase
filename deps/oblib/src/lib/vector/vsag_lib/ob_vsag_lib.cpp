@@ -329,8 +329,8 @@ int knn_search(VectorIndexPtr& index_handler,float* query_vector,int dim, int64_
         return static_cast<int>(error);
     }
     SlowTaskTimer t("knn_search");
-    roaring::api::roaring64_bitmap_t *bitmap = static_cast<roaring::api::roaring64_bitmap_t*>(invalid);
-    auto filter = [bitmap](int64_t id) -> bool {
+    // roaring::api::roaring64_bitmap_t *bitmap = static_cast<roaring::api::roaring64_bitmap_t*>(invalid);
+    auto filter = [](int64_t id) -> bool {
         // return roaring::api::roaring64_bitmap_contains(bitmap, id);
         return false;
     };
