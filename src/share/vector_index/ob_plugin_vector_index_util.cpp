@@ -89,6 +89,8 @@ int ObVectorQueryVidIterator::get_next_rows_directly(sql::ExprFixedArray& exprs,
     ret = OB_NOT_INIT;
     LOG_WARN("iter is not initialized.", K(ret));
   } else if (cur_pos_ < total_) {
+    // 预取vid
+    _mm_prefetch(vids_[cur_pos_], _MM_HINT_T0);  
     int64_t index = 0;
     for (; index < batch_size_ && cur_pos_ < total_; ++index) {
       // for (int64_t i = 0; i < exprs.count(); ++i) {
@@ -132,6 +134,8 @@ int ObVectorQueryVidIterator::get_next_rows(ObNewRow *&row, int64_t &size)
         ret = OB_ALLOCATE_MEMORY_FAILED;
         LOG_WARN("failed to allocator NewRow.", K(ret));
       } else {
+        // 预取vid
+        _mm_prefetch(vids_[cur_pos_], _MM_HINT_T0);  
         int64_t index = 0;
         for (; index < batch_size_ && cur_pos_ < total_; ++index) {
           if(need_filter_ && filter_value_ != (vids_[cur_pos_] & 0xFFFFFFFF)){
