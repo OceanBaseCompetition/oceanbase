@@ -932,7 +932,8 @@ int ObVectorIndexLookupOp::process_adaptor_state()
   bool is_continue = true;
   ObPluginVectorIndexService *vec_index_service = MTL(ObPluginVectorIndexService *);
   ObVidAdaLookupStatus last_state = ObVidAdaLookupStatus::STATES_ERROR;
-  ObVidAdaLookupStatus cur_state = ObVidAdaLookupStatus::STATES_INIT;
+  // ObVidAdaLookupStatus cur_state = ObVidAdaLookupStatus::STATES_INIT;
+  ObVidAdaLookupStatus cur_state = ObVidAdaLookupStatus::QUERY_SNAPSHOT_TBL;
   ObArenaAllocator tmp_allocator("VectorAdaptor", OB_MALLOC_NORMAL_BLOCK_SIZE, MTL_ID()); // use for tmp query and data complement
   ObArenaAllocator batch_allocator("VectorAdaptor", OB_MALLOC_NORMAL_BLOCK_SIZE, MTL_ID()); // use for data complement for each batch
   ObVectorQueryAdaptorResultContext ada_ctx(MTL_ID(), &vec_op_alloc_, &tmp_allocator, &batch_allocator);
@@ -954,7 +955,7 @@ int ObVectorIndexLookupOp::process_adaptor_state()
       LOG_WARN("shouldn't be null.", K(ret));
     } else {
       while (OB_SUCC(ret) && is_continue) {
-        if ((last_state != cur_state || cur_state == ObVidAdaLookupStatus::QUERY_ROWKEY_VEC) && OB_FAIL(prepare_state(cur_state, ada_ctx))) {
+        if ((last_state != cur_state) && OB_FAIL(prepare_state(cur_state, ada_ctx))) {
           LOG_WARN("failed to prepare state", K(ret));
         } else if (OB_FAIL(call_pva_interface(cur_state, ada_ctx, *adaptor))) {
           LOG_WARN("failed to call_pva_interface", K(ret));

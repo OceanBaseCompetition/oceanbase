@@ -1184,6 +1184,11 @@ int ObPluginVectorIndexAdaptor::check_snapshot_table_wait_status(ObVectorQueryAd
 {
   INIT_SUCC(ret);
   // TODO 判断是否需要等待 PVQ_WAIT
+  if (snap_data_->rb_flag_) {
+    ctx->flag_ = PVQP_SECOND;
+  } else {
+    ctx->flag_ = PVQP_FIRST;
+  }
   ctx->status_ = PVQ_OK;
 
   return ret;
